@@ -1,0 +1,36 @@
+services:
+    #ApiDoc
+    auto1.route_describers.route_metadata:
+        class: Auto1\ServiceAPIHandlerBundle\ApiDoc\EndpointRouteDescriber
+        arguments:
+            - '@auto1.api.endpoint.registry'
+            - '%auto1.api_handler.controller_request_mapping%'
+            - '@property_info'
+        tags:
+            - {name: 'nelmio_api_doc.route_describer', priority: -400}
+
+    # Argument resolver
+    auto1.api_handler.argument_resolver.service_request:
+        class: Auto1\ServiceAPIHandlerBundle\ArgumentResolver\ServiceRequestResolver
+        arguments:
+            - '@auto1.api.request.serializer'
+            - '@auto1.api.endpoint.registry'
+            - '@auto1.api_handler.response_listener.service_response'
+        tags:
+            - { name: 'controller.argument_value_resolver', priority: 150 }
+
+    # Response resolver
+    auto1.api_handler.response_listener.service_response:
+        class: Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener
+        arguments:
+            - '@auto1.api.response.serializer'
+        tags:
+            - { name: 'kernel.event_subscriber' }
+
+    auto1.api_handler.routing.loader.endpoint:
+        class: Auto1\ServiceAPIHandlerBundle\Routing\EndpointLoader
+        arguments:
+            - '@auto1.api.endpoint.registry'
+            - '%auto1.api_handler.controller_request_mapping%'
+        tags:
+            - { name: 'routing.loader', priority: 0 }
