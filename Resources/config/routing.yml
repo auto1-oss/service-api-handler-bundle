@@ -1,0 +1,3 @@
+endpoints:
+    resource: .
+    type: endpoint_handler
