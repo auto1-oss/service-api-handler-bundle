@@ -11,8 +11,8 @@
   ],
   "require": {
     "php": ">=7.0.8",
-    "auto1-oss/service-api-request": "dev-master",
-    "auto1-oss/service-api-components-bundle": "dev-master",
+    "auto1-oss/service-api-request": "^1.0",
+    "auto1-oss/service-api-components-bundle": "^1.0",
     "symfony/serializer" : "~3.0|~4.0",
     "symfony/monolog-bridge": "~3.0|~4.0",
     "symfony/dependency-injection": "~3.0|~4.0",
@@ -34,15 +34,5 @@
   },
   "autoload": {
     "psr-4": { "Auto1\\ServiceAPIHandlerBundle\\": "" }
-  },
-  "repositories": [
-    {
-      "type": "git",
-      "url": "git@github.com:auto1-oss/service-api-request.git"
-    },
-    {
-      "type": "git",
-      "url": "git@github.com:auto1-oss/service-api-components-bundle.git"
-    }
-  ]
+  }
 }
