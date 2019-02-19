@@ -12,25 +12,6 @@ endpoints:
     resource: "@Auto1ServiceAPIHandlerBundle/Resources/config/routing.yml"
 ```
 
-### Composer
-You will need to add this to your composer.json:
-```json
-    "repositories": [
-        {
-            "type": "git",
-            "url": "git@github.com:auto1-oss/service-api-request.git"
-        },
-        {
-            "type": "git",
-            "url": "git@github.com:auto1-oss/service-api-components-bundle.git"
-        },
-        {
-            "type": "git",
-            "url": "git@github.com:auto1-oss/service-api-handler-bundle.git"
-        }
-    ]
-```
-
 ## Description
 Use Endpoints specifications to handle symfony request flow.
 

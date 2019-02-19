@@ -16,6 +16,9 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
 {
     const CONTROLLER_SUFFIX = 'Controller';
     const ACTION_SUFFIX = 'Action';
+    const EXCLUDES_IN_VENDOR = [
+        'symfony/framework-bundle'
+    ];
 
     /**
      * You can modify the container here before it is dumped to PHP code.
@@ -41,6 +44,7 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
         $finder = new Finder();
         $finder->name(sprintf('*%s.php', self::CONTROLLER_SUFFIX));
         $finder->in($paths);
+        $finder->exclude(self::EXCLUDES_IN_VENDOR);
 
         foreach ($finder as $file)
         {
