@@ -97,6 +97,10 @@ class EndpointRouteDescriber implements RouteDescriberInterface, ModelRegistryAw
     {
         $controller = $route->getDefault('_controller');
 
+        if (!\array_key_exists($controller, $this->controllerToRequestMapping)) {
+            return null;
+        }
+
         if (in_array($controller, $this->controllerToRequestMapping)) {
             return null;
         }
