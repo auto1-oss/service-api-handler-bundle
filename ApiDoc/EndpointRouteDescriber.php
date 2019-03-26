@@ -101,10 +101,6 @@ class EndpointRouteDescriber implements RouteDescriberInterface, ModelRegistryAw
             return null;
         }
 
-        if (in_array($controller, $this->controllerToRequestMapping)) {
-            return null;
-        }
-
         $request  = $this->controllerToRequestMapping[$controller];
         $endpoint = $this->endpointRegistry->getEndpoint(new $request);
 
