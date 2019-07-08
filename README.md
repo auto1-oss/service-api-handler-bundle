@@ -17,6 +17,10 @@ Use Endpoints specifications to handle symfony request flow.
 
 Prepares `RequestDTO` from `$_GLOBALS` and serializes response from `ServiceResponse(ResponseDTO, HTTP_CODE)`
 
+## Controller
+* Controllers must be tagged with `controller.service_arguments` and suffixed with `Controller`
+* Action methods must be suffixed with `Action`
+
 ## ServiceResponse
 * Fully imitates, but not implements behaviour of `HttpFoundation\Response` (JsonResponse)
 * Agnostic to the response format, and performs serialization after being returned from the controller
