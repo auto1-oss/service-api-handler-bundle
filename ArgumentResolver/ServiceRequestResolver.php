@@ -2,14 +2,14 @@
 
 namespace Auto1\ServiceAPIHandlerBundle\ArgumentResolver;
 
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
 use Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener;
+use Auto1\ServiceAPIRequest\ServiceRequestInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
-use Symfony\Component\Serializer\Serializer;
-use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
-use Auto1\ServiceAPIRequest\ServiceRequestInterface;
+use Symfony\Component\Serializer\SerializerInterface;
 
 /**
  * Class ArgumentResolver
@@ -17,7 +17,7 @@ use Auto1\ServiceAPIRequest\ServiceRequestInterface;
 class ServiceRequestResolver implements ArgumentValueResolverInterface
 {
     /**
-     * @var Serializer
+     * @var SerializerInterface
      */
     private $serializer;
 
@@ -34,12 +34,12 @@ class ServiceRequestResolver implements ArgumentValueResolverInterface
     /**
      * ServiceRequestResolver constructor.
      *
-     * @param Serializer $serializer
+     * @param SerializerInterface $serializer
      * @param EndpointRegistryInterface $endpointRegistry
      * @param ServiceResponseListener $serviceResponseListener
      */
     public function __construct(
-        Serializer $serializer,
+        SerializerInterface $serializer,
         EndpointRegistryInterface $endpointRegistry,
         ServiceResponseListener $serviceResponseListener
     ) {
