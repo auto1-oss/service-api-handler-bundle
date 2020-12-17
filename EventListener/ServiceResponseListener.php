@@ -7,7 +7,7 @@ use Auto1\ServiceAPIHandlerBundle\Response\ServiceResponse;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\ViewEvent;
+use Symfony\Component\HttpKernel\Event;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -49,10 +49,14 @@ class ServiceResponseListener implements EventSubscriberInterface
     /**
      * Do the conversion if applicable and update the response of the event.
      *
-     * @param ViewEvent $event
+     * @param Event\ViewEvent|Event\GetResponseForControllerResultEvent $event
      */
-    public function onKernelView(ViewEvent $event)
+    public function onKernelView($event)
     {
+        if (!($event instanceof Event\ViewEvent || $event instanceof Event\GetResponseForControllerResultEvent)) {
+            throw new \LogicException('Unsupported event type');
+        }
+
         $serviceResponse = $event->getControllerResult();
 
         if (!$serviceResponse instanceof ServiceResponse) {
