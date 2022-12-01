@@ -3,11 +3,14 @@
 namespace Auto1\ServiceAPIHandlerBundle\ArgumentResolver;
 
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
+use Auto1\ServiceAPIComponentsBundle\Service\Logger\LoggerAwareTrait;
 use Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener;
 use Auto1\ServiceAPIRequest\ServiceRequestInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Serializer\Exception\ExceptionInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -16,6 +19,7 @@ use Symfony\Component\Serializer\SerializerInterface;
  */
 class ServiceRequestResolver implements ArgumentValueResolverInterface
 {
+    use LoggerAwareTrait;
     /**
      * @var SerializerInterface
      */
@@ -69,26 +73,36 @@ class ServiceRequestResolver implements ArgumentValueResolverInterface
             throw new \LogicException('Incorrect resolving');
         }
 
-        $requestVars = array_merge(
-            !empty($request->getContent())
-                ? $this->serializer->decode(
+        try {
+            $requestVars = array_merge(
+                !empty($request->getContent())
+                    ? $this->serializer->decode(
                     $request->getContent(),
                     $endpoint->getRequestFormat()
                 )
-                : []
-            ,
-            $request->attributes->all()
-        );
+                    : []
+                ,
+                $request->attributes->all()
+            );
 
-        $this->serviceResponseListener->addExpectedRequestEndpoint($request, $endpoint);
+            $this->serviceResponseListener->addExpectedRequestEndpoint($request, $endpoint);
 
-        yield $this->serializer->denormalize(
-            $requestVars,
-            $endpoint->getRequestClass(),
-            $endpoint->getRequestFormat(),
-            [
-                AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true,
-            ]
-        );
+            yield $this->serializer->denormalize(
+                $requestVars,
+                $endpoint->getRequestClass(),
+                $endpoint->getRequestFormat(),
+                [
+                    AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true,
+                ]
+            );
+        } catch (ExceptionInterface $exception) {
+            $this->getLogger()->warning(
+                'Request deserialization exception',
+                [
+                    'exception_message' => $exception->getMessage(),
+                ]
+            );
+            throw new BadRequestHttpException('Request deserialization error');
+        }
     }
 }

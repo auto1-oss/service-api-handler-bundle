@@ -34,5 +34,8 @@
   },
   "autoload": {
     "psr-4": { "Auto1\\ServiceAPIHandlerBundle\\": "" }
+  },
+  "autoload-dev": {
+    "psr-4": { "Tests\\Auto1\\ServiceAPIHandlerBundle\\": "Tests"}
   }
 }
