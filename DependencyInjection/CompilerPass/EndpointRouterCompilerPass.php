@@ -30,6 +30,9 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
         $services = [];
 
         foreach ($container->getDefinitions() as $id => $definition) {
+            if (strpos($id, '.abstract.instanceof.') === 0) {
+                continue;
+            }
             $services[$id] = $definition->getClass();
         }
 
