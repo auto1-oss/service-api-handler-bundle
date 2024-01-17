@@ -12,19 +12,19 @@
   "require": {
     "php": ">=7.0.8",
     "auto1-oss/service-api-request": "^1.0",
-    "auto1-oss/service-api-components-bundle": "^1.0",
-    "symfony/serializer" : "~3.0|~4.0|~5.0",
-    "symfony/monolog-bridge": "~3.0|~4.0|~5.0",
-    "symfony/dependency-injection": "~3.0|~4.0|~5.0",
-    "symfony/config": "~3.0|~4.0|~5.0",
-    "symfony/http-kernel": "~3.0|~4.0|~5.0",
-    "symfony/http-foundation": "~3.0|~4.0|~5.0",
-    "symfony/property-info": "^3.4.2|~4.0|~5.0",
-    "symfony/yaml": "~3.0|~4.0|~5.0",
+    "auto1-oss/service-api-components-bundle": "dev-symfony-6-support",
+    "symfony/serializer" : "~3.0|~4.0|~5.0|~6.0",
+    "symfony/monolog-bridge": "~3.0|~4.0|~5.0|~6.0",
+    "symfony/dependency-injection": "~3.0|~4.0|~5.0|~6.0",
+    "symfony/config": "~3.0|~4.0|~5.0|~6.0",
+    "symfony/http-kernel": "~3.0|~4.0|~5.0|~6.0",
+    "symfony/http-foundation": "~3.0|~4.0|~5.0|~6.0",
+    "symfony/property-info": "^3.4.2|~4.0|~5.0|~6.0",
+    "symfony/yaml": "~3.0|~4.0|~5.0|~6.0",
     "monolog/monolog": "~1.22"
   },
   "require-dev": {
-    "symfony/console": "~3.0|~4.0|~5.0",
+    "symfony/console": "~3.0|~4.0|~5.0|~6.0",
     "phpunit/phpunit": "^4.8",
     "symfony/phpunit-bridge": "^3.3.8",
     "phpspec/prophecy": "^1.7.2"
@@ -37,5 +37,11 @@
   },
   "autoload-dev": {
     "psr-4": { "Tests\\Auto1\\ServiceAPIHandlerBundle\\": "Tests"}
-  }
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/pidhorodetskyi/service-api-components-bundle"
+    }
+  ]
 }
