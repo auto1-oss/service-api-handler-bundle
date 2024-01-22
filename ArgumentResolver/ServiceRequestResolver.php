@@ -55,7 +55,7 @@ class ServiceRequestResolver implements ArgumentValueResolverInterface
     /**
       * {@inheritdoc}
      */
-    public function supports(Request $request, ArgumentMetadata $argument)
+    public function supports(Request $request, ArgumentMetadata $argument): bool
     {
         return is_subclass_of($argument->getType(), ServiceRequestInterface::class, true);
     }
@@ -63,7 +63,7 @@ class ServiceRequestResolver implements ArgumentValueResolverInterface
     /**
       * {@inheritdoc}
      */
-    public function resolve(Request $request, ArgumentMetadata $argument)
+    public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {
         $endpoint = $this->endpointRegistry->getEndpoint(
             (new \ReflectionClass($argument->getType()))->newInstanceWithoutConstructor()

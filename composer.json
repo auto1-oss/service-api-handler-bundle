@@ -10,7 +10,7 @@
     }
   ],
   "require": {
-    "php": ">=7.0.8",
+    "php": ">=7.1",
     "auto1-oss/service-api-request": "^1.0",
     "auto1-oss/service-api-components-bundle": "dev-symfony-6-support",
     "symfony/serializer" : "~3.0|~4.0|~5.0|~6.0",
