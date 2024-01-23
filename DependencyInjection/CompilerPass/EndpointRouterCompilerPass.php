@@ -95,9 +95,8 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
 
         foreach ($routeDetails as $routeDetail) {
             $controllerKey = $classToServiceMapping[$routeDetail['controller']] ?? $routeDetail['controller'];
-            $separator = isset($classToServiceMapping[$routeDetail['controller']]) ? ':' : '::';
 
-            $mapping[sprintf('%s%s%s', $controllerKey, $separator, $routeDetail['action'])] = $routeDetail['request'];
+            $mapping[sprintf('%s::%s', $controllerKey, $routeDetail['action'])] = $routeDetail['request'];
         }
 
         return $mapping;
