@@ -21,13 +21,13 @@
     "symfony/http-foundation": "~3.0|~4.0|~5.0|~6.0",
     "symfony/property-info": "^3.4.2|~4.0|~5.0|~6.0",
     "symfony/yaml": "~3.0|~4.0|~5.0|~6.0",
-    "monolog/monolog": "~1.22"
+    "monolog/monolog": "~1.22",
+    "phpspec/prophecy-phpunit": "^2.1"
   },
   "require-dev": {
-    "symfony/console": "~3.0|~4.0|~5.0|~6.0",
-    "phpunit/phpunit": "^4.8",
     "symfony/phpunit-bridge": "^3.3.8",
-    "phpspec/prophecy": "^1.7.2"
+    "phpunit/phpunit": "^10.5",
+    "symfony/console": "~3.0|~4.0|~5.0|~6.0"
   },
   "suggest": {
       "nelmio/api-doc-bundle": "For Generating API documentations"
