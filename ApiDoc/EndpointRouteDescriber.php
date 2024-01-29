@@ -25,6 +25,7 @@ use Symfony\Component\Routing\Route;
  * Class EndpointRouteDescriber.
  *
  * @package Auto1\ServiceAPIHandlerBundle\ApiDoc
+ * @deprecated For nelmio/api-doc-bundle v4 OpenApi used instead of Swagger.
  */
 class EndpointRouteDescriber implements RouteDescriberInterface, ModelRegistryAwareInterface
 {
