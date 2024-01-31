@@ -26,8 +26,11 @@ class Auto1ServiceAPIHandlerExtension extends Extension
         //Load config files
         $loader->load('services.yml');
 
-        if (!class_exists(NelmioApiDocBundle::class) || !class_exists('EXSyst\Component\Swagger\Swagger')) {
+        if (!class_exists('EXSyst\Component\Swagger\Swagger')) {
             $container->removeDefinition('auto1.route_describers.route_metadata');
+        }
+        if (!class_exists('OpenApi\Annotations\OpenApi')) {
+            $container->removeDefinition('auto1.route_describers.open_api_route_describer');
         }
     }
 }
