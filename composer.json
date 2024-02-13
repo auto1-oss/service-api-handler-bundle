@@ -21,7 +21,8 @@
     "symfony/http-foundation": "~3.0|~4.0|~5.0|~6.0",
     "symfony/property-info": "^3.4.2|~4.0|~5.0|~6.0",
     "symfony/yaml": "~3.0|~4.0|~5.0|~6.0",
-    "monolog/monolog": "~1.22"
+    "monolog/monolog": "~1.22",
+    "symfony/routing": "~4.1|~5.0|~6.0"
   },
   "require-dev": {
     "symfony/phpunit-bridge": "^3.3.8",
