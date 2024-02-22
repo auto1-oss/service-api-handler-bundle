@@ -10,7 +10,6 @@ use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\ServiceRequestResolver;
 use Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
 use Prophecy\Prophecy\ObjectProphecy;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
@@ -23,8 +22,6 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class ServiceRequestResolverTest extends TestCase
 {
-    use ProphecyTrait;
-
     /**
      * @var SerializerInterface|DecoderInterface|DenormalizerInterface|ObjectProphecy
      */
