@@ -95,9 +95,11 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
 
         foreach ($routeDetails as $routeDetail) {
             $controllerKey = $classToServiceMapping[$routeDetail['controller']] ?? $routeDetail['controller'];
-            $separator = isset($classToServiceMapping[$routeDetail['controller']]) ? ':' : '::';
 
-            $mapping[sprintf('%s%s%s', $controllerKey, $separator, $routeDetail['action'])] = $routeDetail['request'];
+            /**
+             * https://symfony.com/blog/new-in-symfony-4-1-deprecated-the-bundle-notation
+             */
+            $mapping[sprintf('%s::%s', $controllerKey, $routeDetail['action'])] = $routeDetail['request'];
         }
 
         return $mapping;

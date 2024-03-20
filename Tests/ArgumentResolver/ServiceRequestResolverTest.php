@@ -15,11 +15,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
-use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
 use Symfony\Component\Serializer\Exception\UnexpectedValueException;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
-use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class ServiceRequestResolverTest extends TestCase
@@ -47,7 +45,7 @@ class ServiceRequestResolverTest extends TestCase
     /**
      * {@inheritDoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->serializerProphecy = $this->prophesize(DecodeDenormalizeAwareSerializerInterface::class);
         $this->endpointRegistryProphecy = $this->prophesize(EndpointRegistryInterface::class);
@@ -62,7 +60,7 @@ class ServiceRequestResolverTest extends TestCase
     /**
      * @return void
      */
-    public function testResolveWrongRequestClass()
+    public function testResolveWrongRequestClass(): void
     {
         $generator = $this->serviceRequestResolver->resolve(
             new Request(),
@@ -76,14 +74,14 @@ class ServiceRequestResolverTest extends TestCase
             ->willReturn(\stdClass::class)
             ->shouldBeCalled();
 
-        self::setExpectedException(\LogicException::class);
+        $this->expectException(\LogicException::class);
         $generator->current();
     }
 
     /**
      * @return void
      */
-    public function testResolveDecodeException()
+    public function testResolveDecodeException(): void
     {
         $generator = $this->serviceRequestResolver->resolve(
             new Request([], [], ['baz' => 'qux'], [], [], [], 'foobar'),
@@ -103,7 +101,7 @@ class ServiceRequestResolverTest extends TestCase
             ->willThrow(UnexpectedValueException::class)
             ->shouldBeCalled();
 
-        self::setExpectedException(BadRequestHttpException::class);
+        $this->expectException(BadRequestHttpException::class);
         $generator->current();
     }
 
@@ -138,14 +136,11 @@ class ServiceRequestResolverTest extends TestCase
             ->willThrow(NotNormalizableValueException::class)
             ->shouldBeCalled();
 
-        self::setExpectedException(BadRequestHttpException::class);
+        $this->expectException(BadRequestHttpException::class);
         $generator->current();
     }
 
-    /**
-     * @return void
-     */
-    public function testResolve()
+    public function testResolve(): void
     {
         $generator = $this->serviceRequestResolver->resolve(
             new Request([], [], ['baz' => 'qux'], [], [], [], 'foobar'),
@@ -173,7 +168,7 @@ class ServiceRequestResolverTest extends TestCase
             ->willReturn(new RequestStub())
             ->shouldBeCalled();
 
-        self::assertInstanceOf(RequestStub::class, $generator->current());
+        $this->assertInstanceOf(RequestStub::class, $generator->current());
     }
 
     /**
@@ -182,18 +177,18 @@ class ServiceRequestResolverTest extends TestCase
      * @param bool             $expectedResult
      * @return void
      */
-    public function testSupports(ArgumentMetadata $argumentMetadata, bool $expectedResult)
+    public function testSupports(ArgumentMetadata $argumentMetadata, bool $expectedResult): void
     {
-        self::assertSame($expectedResult, $this->serviceRequestResolver->supports(new Request(), $argumentMetadata));
+        $this->assertSame($expectedResult, $this->serviceRequestResolver->supports(new Request(), $argumentMetadata));
     }
 
-    public function getDataForTestSupports()
+    public static function getDataForTestSupports(): \Generator
     {
-        yield 'supported' => [$this->createMetadata(), true];
+        yield 'supported' => [self::createMetadata(), true];
         yield 'not supported' => [new ArgumentMetadata('bar', \stdClass::class, false, false, null), false];
     }
 
-    private function createMetadata(): ArgumentMetadata
+    private static function createMetadata(): ArgumentMetadata
     {
         return new ArgumentMetadata('foo', RequestStub::class, false, false, null);
     }

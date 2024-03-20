@@ -9,6 +9,15 @@ services:
         tags:
             - {name: 'nelmio_api_doc.route_describer', priority: -400}
 
+    auto1.route_describers.open_api_route_describer:
+        class: Auto1\ServiceAPIHandlerBundle\ApiDoc\OpenApiEndpointRouteDescriber
+        arguments:
+            - '@auto1.api.endpoint.registry'
+            - '%auto1.api_handler.controller_request_mapping%'
+            - '@property_info'
+        tags:
+            - {name: 'nelmio_api_doc.route_describer', priority: -400}
+
     # Argument resolver
     auto1.api_handler.argument_resolver.service_request:
         class: Auto1\ServiceAPIHandlerBundle\ArgumentResolver\ServiceRequestResolver

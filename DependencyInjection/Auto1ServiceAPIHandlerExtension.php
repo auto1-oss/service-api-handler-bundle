@@ -9,7 +9,7 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
 /**
- * Class PricingExtension
+ * Class Auto1ServiceAPIHandlerExtension
  */
 class Auto1ServiceAPIHandlerExtension extends Extension
 {
@@ -26,8 +26,11 @@ class Auto1ServiceAPIHandlerExtension extends Extension
         //Load config files
         $loader->load('services.yml');
 
-        if (!class_exists(NelmioApiDocBundle::class)) {
+        if (!class_exists('EXSyst\Component\Swagger\Swagger') || class_exists('OpenApi\Annotations\OpenApi')) {
             $container->removeDefinition('auto1.route_describers.route_metadata');
+        }
+        if (!class_exists('OpenApi\Annotations\OpenApi')) {
+            $container->removeDefinition('auto1.route_describers.open_api_route_describer');
         }
     }
 }

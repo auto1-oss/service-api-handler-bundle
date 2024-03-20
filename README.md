@@ -77,6 +77,10 @@ class MyController {
 }
 ```
 
+## Swagger generation
+For `symfony:>=6.0` and `nelmio/api-doc-bundle:>=4.0` swagger json file is generated in OpenApi v3 format `"openapi": "3.0.0"`.
+For previous versions of `symfony` and `nelmio/api-doc-bundle` swagger json file is generated in Swagger V2 format `"swagger": "2.0"`.
+
 ## Debug
 ```bash
 bin/console c:c && bin/console debug:router --show-controllers
