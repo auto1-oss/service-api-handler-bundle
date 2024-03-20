@@ -81,18 +81,23 @@ class OpenApiEndpointRouteDescriber implements RouteDescriberInterface, ModelReg
         $this->fillEndpointParameters($operation, $route, $endpoint);
 
         $components = $api->components;
-        $api->components = new Components([
-            'schemas' => $components->schemas,
-            'responses' => $components->responses,
-            'parameters' => $components->parameters,
-            'examples' => $components->examples,
-            'requestBodies' => $components->requestBodies,
-            'headers' => $components->headers,
-            'securitySchemes' => $components->securitySchemes,
-            'links' => $components->links,
-            'callbacks' => $components->callbacks,
-        ]);
 
+        $properties = [];
+        if ($components !== Generator::UNDEFINED) {
+            $properties = [
+                'schemas' => $components->schemas ,
+                'responses' => $components->responses,
+                'parameters' => $components->parameters,
+                'examples' => $components->examples,
+                'requestBodies' => $components->requestBodies,
+                'headers' => $components->headers,
+                'securitySchemes' => $components->securitySchemes,
+                'links' => $components->links,
+                'callbacks' => $components->callbacks,
+            ];
+        }
+
+        $api->components = new Components($properties);
     }
 
     private function getEndpoint(Route $route)
