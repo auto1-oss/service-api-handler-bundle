@@ -33,7 +33,12 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
             if (strpos($id, '.abstract.instanceof.') === 0) {
                 continue;
             }
-            $services[$id] = $definition->getClass();
+
+            $class = $definition->getClass();
+            if ($class === null) {
+                continue;
+            }
+            $services[$id] = $class;
         }
 
         $classToServiceMapping = array_flip($this->filterControllers($services));
@@ -168,10 +173,6 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
     private function filterControllers(array $classes) : array
     {
         return \array_filter($classes, function ($v) {
-            if ($v === null) {
-                return false;
-            }
-
             return \substr($v, -\strlen(self::CONTROLLER_SUFFIX)) === self::CONTROLLER_SUFFIX;
         });
     }
