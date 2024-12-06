@@ -130,17 +130,20 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
 
                 $resolvedRequests = [];
 
-                foreach($reflectionMethod->getParameters() as $reflectionParameter) {
-                    if (null === $reflectionParameter->getClass()) {
+                foreach ($reflectionMethod->getParameters() as $reflectionParameter) {
+                    $type = $reflectionParameter->getType();
+
+                    if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
                         continue;
                     }
 
-                    if ($reflectionParameter->getClass()->isAbstract()) {
+                    $className = $type->getName();
+                    if (!class_exists($className) || (new \ReflectionClass($className))->isAbstract()) {
                         continue;
                     }
 
-                    if (is_subclass_of($reflectionParameter->getClass()->getName(), ServiceRequestInterface::class, true)) {
-                        $resolvedRequests[] = $reflectionParameter->getClass()->getName();
+                    if (is_subclass_of($className, ServiceRequestInterface::class)) {
+                        $resolvedRequests[] = $className;
                     }
                 }
 
@@ -165,6 +168,10 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
     private function filterControllers(array $classes) : array
     {
         return \array_filter($classes, function ($v) {
+            if ($v === null) {
+                return false;
+            }
+
             return \substr($v, -\strlen(self::CONTROLLER_SUFFIX)) === self::CONTROLLER_SUFFIX;
         });
     }
