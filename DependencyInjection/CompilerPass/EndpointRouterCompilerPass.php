@@ -33,7 +33,12 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
             if (strpos($id, '.abstract.instanceof.') === 0) {
                 continue;
             }
-            $services[$id] = $definition->getClass();
+
+            $class = $definition->getClass();
+            if ($class === null) {
+                continue;
+            }
+            $services[$id] = $class;
         }
 
         $classToServiceMapping = array_flip($this->filterControllers($services));
@@ -130,17 +135,20 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
 
                 $resolvedRequests = [];
 
-                foreach($reflectionMethod->getParameters() as $reflectionParameter) {
-                    if (null === $reflectionParameter->getClass()) {
+                foreach ($reflectionMethod->getParameters() as $reflectionParameter) {
+                    $type = $reflectionParameter->getType();
+
+                    if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
                         continue;
                     }
 
-                    if ($reflectionParameter->getClass()->isAbstract()) {
+                    $className = $type->getName();
+                    if (!class_exists($className) || (new \ReflectionClass($className))->isAbstract()) {
                         continue;
                     }
 
-                    if (is_subclass_of($reflectionParameter->getClass()->getName(), ServiceRequestInterface::class, true)) {
-                        $resolvedRequests[] = $reflectionParameter->getClass()->getName();
+                    if (is_subclass_of($className, ServiceRequestInterface::class)) {
+                        $resolvedRequests[] = $className;
                     }
                 }
 
