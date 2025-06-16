@@ -91,7 +91,8 @@ class ServiceRequestResolver implements ArgumentValueResolverInterface
                 )
                     : []
                 ,
-                $request->attributes->all()
+                $request->attributes->all(),
+                $request->query->all()
             );
 
             $this->serviceResponseListener->addExpectedRequestEndpoint($request, $endpoint);

@@ -152,7 +152,7 @@ class ServiceRequestResolverTest extends TestCase
     public function testResolve(): void
     {
         $generator = $this->serviceRequestResolver->resolve(
-            new Request([], [], ['baz' => 'qux'], [], [], [], 'foobar'),
+            new Request(['asd' => 'dsa'], [], ['baz' => 'qux'], [], [], [], 'foobar'),
             $this->createMetadata()
         );
         $endpointProphecy = $this->prophesize(EndpointInterface::class);
@@ -169,7 +169,7 @@ class ServiceRequestResolverTest extends TestCase
             ->willReturn(['foo' => 'bar'])
             ->shouldBeCalled();
         $this->serializerProphecy->denormalize(
-            ['foo' => 'bar', 'baz' => 'qux'],
+            ['foo' => 'bar', 'baz' => 'qux', 'asd' => 'dsa'],
             RequestStub::class,
             'json',
             Argument::cetera()
