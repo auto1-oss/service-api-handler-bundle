@@ -10,7 +10,7 @@
     }
   ],
   "require": {
-    "php": ">=8.2",
+    "php": "^7.4|^8.2",
     "auto1-oss/service-api-request": "^1.0",
     "auto1-oss/service-api-components-bundle": "^1.0",
     "symfony/serializer" : "~3.0|~4.0|~5.0|~6.0|~7.0",
@@ -26,7 +26,7 @@
   },
   "require-dev": {
     "symfony/console": "~3.0|~4.0|~5.0|~6.0|~7.0",
-    "phpunit/phpunit": "^9.6",
+    "phpunit/phpunit": "^7.5|^8.0|^9.6",
     "phpspec/prophecy": "^1.7.2"
   },
   "suggest": {
