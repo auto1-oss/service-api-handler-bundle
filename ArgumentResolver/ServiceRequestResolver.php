@@ -67,7 +67,7 @@ class ServiceRequestResolver implements ValueResolverInterface
     public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {
         if (!$this->supports($argument)) {
-            return;
+            return [];
         }
 
         $endpoint = $this->endpointRegistry->getEndpoint(
