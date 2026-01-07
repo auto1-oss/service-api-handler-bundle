@@ -16,7 +16,7 @@ use Auto1\ServiceAPIComponentsBundle\Service\Logger\LoggerAwareTrait;
 use Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener;
 use Auto1\ServiceAPIRequest\ServiceRequestInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
+use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Serializer\Exception\ExceptionInterface;
@@ -26,7 +26,7 @@ use Symfony\Component\Serializer\SerializerInterface;
 /**
  * Class ArgumentResolver
  */
-class ServiceRequestResolver implements ArgumentValueResolverInterface
+class ServiceRequestResolver implements ValueResolverInterface
 {
     use LoggerAwareTrait;
     /**

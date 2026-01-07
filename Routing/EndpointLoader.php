@@ -43,7 +43,7 @@ class EndpointLoader extends Loader
     /**
      * {@inheritdoc}
      */
-    public function load($resource, $type = null)
+    public function load($resource, $type = null): object
     {
         $routes = new RouteCollection();
 
@@ -73,7 +73,7 @@ class EndpointLoader extends Loader
     /**
      * {@inheritdoc}
      */
-    public function supports($resource, $type = null)
+    public function supports($resource, $type = null): bool
     {
         return 'endpoint_handler' === $type;
     }
