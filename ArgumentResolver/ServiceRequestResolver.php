@@ -66,7 +66,7 @@ class ServiceRequestResolver implements ValueResolverInterface
      */
     public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {
-        if (!$this->supports($request, $argument)) {
+        if (!$this->supports($argument)) {
             return;
         }
 
@@ -112,7 +112,7 @@ class ServiceRequestResolver implements ValueResolverInterface
         }
     }
 
-    private function supports(Request $request, ArgumentMetadata $argument): bool
+    private function supports(ArgumentMetadata $argument): bool
     {
         return is_subclass_of($argument->getType(), ServiceRequestInterface::class, true);
     }
