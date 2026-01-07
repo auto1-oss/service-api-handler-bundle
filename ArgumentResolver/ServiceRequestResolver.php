@@ -64,16 +64,12 @@ class ServiceRequestResolver implements ValueResolverInterface
     /**
       * {@inheritdoc}
      */
-    public function supports(Request $request, ArgumentMetadata $argument): bool
-    {
-        return is_subclass_of($argument->getType(), ServiceRequestInterface::class, true);
-    }
-
-    /**
-      * {@inheritdoc}
-     */
     public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {
+        if (!$this->supports($request, $argument)) {
+            return;
+        }
+
         $endpoint = $this->endpointRegistry->getEndpoint(
             (new \ReflectionClass($argument->getType()))->newInstanceWithoutConstructor()
         );
@@ -114,5 +110,10 @@ class ServiceRequestResolver implements ValueResolverInterface
             );
             throw new BadRequestHttpException('Request deserialization error');
         }
+    }
+
+    private function supports(Request $request, ArgumentMetadata $argument): bool
+    {
+        return is_subclass_of($argument->getType(), ServiceRequestInterface::class, true);
     }
 }
