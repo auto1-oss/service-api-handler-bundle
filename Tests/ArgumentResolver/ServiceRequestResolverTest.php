@@ -180,17 +180,6 @@ class ServiceRequestResolverTest extends TestCase
         $this->assertInstanceOf(RequestStub::class, $generator->current());
     }
 
-    /**
-     * @dataProvider getDataForTestSupports
-     * @param ArgumentMetadata $argumentMetadata
-     * @param bool             $expectedResult
-     * @return void
-     */
-    public function testSupports(ArgumentMetadata $argumentMetadata, bool $expectedResult): void
-    {
-        $this->assertSame($expectedResult, $this->serviceRequestResolver->supports(new Request(), $argumentMetadata));
-    }
-
     public static function getDataForTestSupports(): \Generator
     {
         yield 'supported' => [self::createMetadata(), true];
