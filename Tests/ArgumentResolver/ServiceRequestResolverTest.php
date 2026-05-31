@@ -15,135 +15,113 @@ namespace Tests\Auto1\ServiceAPIHandlerBundle\ArgumentResolver;
 
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
+use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\RequestDataExtractorInterface;
 use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\ServiceRequestResolver;
 use Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\Prophecy\ObjectProphecy;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\Serializer\Encoder\DecoderInterface;
 use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
-use Symfony\Component\Serializer\Exception\UnexpectedValueException;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
-use Symfony\Component\Serializer\SerializerInterface;
 
 class ServiceRequestResolverTest extends TestCase
 {
-    /**
-     * @var SerializerInterface|DecoderInterface|DenormalizerInterface|ObjectProphecy
-     */
-    private $serializerProphecy;
+    private const TARGET_FORMAT = 'json';
+    private const TARGET_MULTIPART_FORMAT = 'multipart';
 
-    /**
-     * @var EndpointRegistryInterface|ObjectProphecy
-     */
-    private $endpointRegistryProphecy;
+    /** @var DenormalizerInterface&MockObject */
+    private DenormalizerInterface $denormalizer;
 
-    /**
-     * @var ServiceResponseListener|ObjectProphecy
-     */
-    private $serviceResponseListenerProphecy;
+    /** @var EndpointRegistryInterface&MockObject */
+    private EndpointRegistryInterface $endpointRegistry;
 
-    /**
-     * @var ServiceRequestResolver
-     */
-    private $serviceRequestResolver;
+    /** @var ServiceResponseListener&MockObject */
+    private ServiceResponseListener $serviceResponseListener;
 
-    /**
-     * {@inheritDoc}
-     */
+    /** @var RequestDataExtractorInterface&MockObject */
+    private RequestDataExtractorInterface $extractor;
+
+    /** @var iterable<RequestDataExtractorInterface> */
+    private iterable $extractors;
+
     protected function setUp(): void
     {
-        $this->serializerProphecy = $this->prophesize(DecodeDenormalizeAwareSerializerInterface::class);
-        $this->endpointRegistryProphecy = $this->prophesize(EndpointRegistryInterface::class);
-        $this->serviceResponseListenerProphecy = $this->prophesize(ServiceResponseListener::class);
-        $this->serviceRequestResolver = new ServiceRequestResolver(
-            $this->serializerProphecy->reveal(),
-            $this->endpointRegistryProphecy->reveal(),
-            $this->serviceResponseListenerProphecy->reveal()
+        $this->denormalizer = $this->createMock(DenormalizerInterface::class);
+        $this->endpointRegistry = $this->createMock(EndpointRegistryInterface::class);
+        $this->serviceResponseListener = $this->createMock(ServiceResponseListener::class);
+        $this->extractor = $this->createMock(RequestDataExtractorInterface::class);
+        $this->extractors = [$this->extractor];
+    }
+
+    private function getCut(): ServiceRequestResolver
+    {
+        return new ServiceRequestResolver(
+            $this->denormalizer,
+            $this->endpointRegistry,
+            $this->serviceResponseListener,
+            $this->extractors
         );
     }
 
-    /**
-     * @return void
-     */
+    private function createMetadata(): ArgumentMetadata
+    {
+        return new ArgumentMetadata('foo', RequestStub::class, false, false, null);
+    }
+
     public function testResolveWrongRequestClass(): void
     {
-        $generator = $this->serviceRequestResolver->resolve(
-            new Request(),
-            $this->createMetadata()
-        );
-        $endpointProphecy = $this->prophesize(EndpointInterface::class);
-        $this->endpointRegistryProphecy->getEndpoint(Argument::type(RequestStub::class))
-            ->willReturn($endpointProphecy->reveal())
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestClass()
-            ->willReturn(\stdClass::class)
-            ->shouldBeCalled();
+        $endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $endpoint->method('getRequestClass')->willReturn(\stdClass::class);
+
+        $cut = $this->getCut();
+
+        $generator = $cut->resolve(new Request(), $this->createMetadata());
 
         $this->expectException(\LogicException::class);
         $generator->current();
     }
 
-    /**
-     * @return void
-     */
-    public function testResolveDecodeException(): void
+    public function testResolveNoSupportingExtractor(): void
     {
-        $generator = $this->serviceRequestResolver->resolve(
-            new Request([], [], ['baz' => 'qux'], [], [], [], 'foobar'),
-            $this->createMetadata()
-        );
-        $endpointProphecy = $this->prophesize(EndpointInterface::class);
-        $this->endpointRegistryProphecy->getEndpoint(Argument::type(RequestStub::class))
-            ->willReturn($endpointProphecy->reveal())
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestClass()
-            ->willReturn(RequestStub::class)
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestFormat()
-            ->willReturn('json')
-            ->shouldBeCalled();
-        $this->serializerProphecy->decode('foobar', 'json', Argument::cetera())
-            ->willThrow(UnexpectedValueException::class)
-            ->shouldBeCalled();
+        $endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
+        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_FORMAT);
+        $this->extractor->method('supports')->with($endpoint)->willReturn(false);
 
-        $this->expectException(BadRequestHttpException::class);
+        $cut = $this->getCut();
+
+        $generator = $cut->resolve(new Request(), $this->createMetadata());
+
+        $this->expectException(\LogicException::class);
         $generator->current();
     }
 
-    /**
-     * @return void
-     */
-    public function testResolveDeserializationException()
+    public function testResolveDeserializationException(): void
     {
-        $generator = $this->serviceRequestResolver->resolve(
-            new Request([], [], ['baz' => 'qux'], [], [], [], 'foobar'),
-            $this->createMetadata()
-        );
-        $endpointProphecy = $this->prophesize(EndpointInterface::class);
-        $this->endpointRegistryProphecy->getEndpoint(Argument::type(RequestStub::class))
-            ->willReturn($endpointProphecy->reveal())
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestClass()
-            ->willReturn(RequestStub::class)
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestFormat()
-            ->willReturn('json')
-            ->shouldBeCalled();
-        $this->serializerProphecy->decode('foobar', 'json', Argument::cetera())
-            ->willReturn(['foo' => 'bar'])
-            ->shouldBeCalled();
-        $this->serializerProphecy->denormalize(
-            ['foo' => 'bar', 'baz' => 'qux'],
-            RequestStub::class,
-            'json',
-            Argument::cetera()
-        )
-            ->willThrow(NotNormalizableValueException::class)
-            ->shouldBeCalled();
+        $targetBody = 'foobar';
+        $targetAttributes = ['targetAttributeKey' => 'targetAttributeValue'];
+        $targetExtracted = ['targetBodyKey' => 'targetBodyValue', 'targetAttributeKey' => 'targetAttributeValue'];
+
+        $request = new Request([], [], $targetAttributes, [], [], [], $targetBody);
+
+        $endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
+        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_FORMAT);
+        $this->extractor->method('supports')->with($endpoint)->willReturn(true);
+        $this->extractor->method('extract')->with($request, $endpoint)->willReturn($targetExtracted);
+        $this->denormalizer
+            ->method('denormalize')
+            ->with($targetExtracted, RequestStub::class, self::TARGET_FORMAT)
+            ->willThrowException(new NotNormalizableValueException());
+
+        $cut = $this->getCut();
+
+        $generator = $cut->resolve($request, $this->createMetadata());
 
         $this->expectException(BadRequestHttpException::class);
         $generator->current();
@@ -151,43 +129,70 @@ class ServiceRequestResolverTest extends TestCase
 
     public function testResolve(): void
     {
-        $generator = $this->serviceRequestResolver->resolve(
-            new Request(['asd' => 'dsa'], [], ['baz' => 'qux'], [], [], [], 'foobar'),
-            $this->createMetadata()
-        );
-        $endpointProphecy = $this->prophesize(EndpointInterface::class);
-        $this->endpointRegistryProphecy->getEndpoint(Argument::type(RequestStub::class))
-            ->willReturn($endpointProphecy->reveal())
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestClass()
-            ->willReturn(RequestStub::class)
-            ->shouldBeCalled();
-        $endpointProphecy->getRequestFormat()
-            ->willReturn('json')
-            ->shouldBeCalled();
-        $this->serializerProphecy->decode('foobar', 'json', Argument::cetera())
-            ->willReturn(['foo' => 'bar'])
-            ->shouldBeCalled();
-        $this->serializerProphecy->denormalize(
-            ['foo' => 'bar', 'baz' => 'qux', 'asd' => 'dsa'],
-            RequestStub::class,
-            'json',
-            Argument::cetera()
-        )
-            ->willReturn(new RequestStub())
-            ->shouldBeCalled();
+        $targetBody = 'foobar';
+        $targetQuery = ['targetQueryKey' => 'targetQueryValue'];
+        $targetAttributes = ['targetAttributeKey' => 'targetAttributeValue'];
+        $targetExtracted = [
+            'targetBodyKey' => 'targetBodyValue',
+            'targetAttributeKey' => 'targetAttributeValue',
+            'targetQueryKey' => 'targetQueryValue',
+        ];
+        $targetDenormalized = new RequestStub();
 
-        $this->assertInstanceOf(RequestStub::class, $generator->current());
+        $request = new Request($targetQuery, [], $targetAttributes, [], [], [], $targetBody);
+
+        $endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
+        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_FORMAT);
+        $this->extractor->method('supports')->with($endpoint)->willReturn(true);
+        $this->extractor->method('extract')->with($request, $endpoint)->willReturn($targetExtracted);
+        $this->denormalizer
+            ->method('denormalize')
+            ->with($targetExtracted, RequestStub::class, self::TARGET_FORMAT)
+            ->willReturn($targetDenormalized);
+
+        $cut = $this->getCut();
+
+        $generator = $cut->resolve($request, $this->createMetadata());
+
+        $this->assertSame($targetDenormalized, $generator->current());
     }
 
-    public static function getDataForTestSupports(): \Generator
+    public function testResolvePicksFirstSupportingExtractor(): void
     {
-        yield 'supported' => [self::createMetadata(), true];
-        yield 'not supported' => [new ArgumentMetadata('bar', \stdClass::class, false, false, null), false];
-    }
+        $targetExtracted = ['targetKey' => 'targetValue'];
+        $targetDenormalized = new RequestStub();
 
-    private static function createMetadata(): ArgumentMetadata
-    {
-        return new ArgumentMetadata('foo', RequestStub::class, false, false, null);
+        $skippedExtractor = $this->createMock(RequestDataExtractorInterface::class);
+        $matchingExtractor = $this->createMock(RequestDataExtractorInterface::class);
+        $this->extractors = [$skippedExtractor, $matchingExtractor];
+
+        $request = new Request();
+        $endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
+        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_MULTIPART_FORMAT);
+
+        $skippedExtractor->expects($this->once())->method('supports')->with($endpoint)->willReturn(false);
+        $skippedExtractor->expects($this->never())->method('extract');
+
+        $matchingExtractor->expects($this->once())->method('supports')->with($endpoint)->willReturn(true);
+        $matchingExtractor
+            ->expects($this->once())
+            ->method('extract')
+            ->with($request, $endpoint)
+            ->willReturn($targetExtracted);
+
+        $this->denormalizer
+            ->method('denormalize')
+            ->with($targetExtracted, RequestStub::class, self::TARGET_MULTIPART_FORMAT)
+            ->willReturn($targetDenormalized);
+
+        $cut = $this->getCut();
+
+        $generator = $cut->resolve($request, $this->createMetadata());
+
+        $this->assertSame($targetDenormalized, $generator->current());
     }
 }

@@ -12,7 +12,9 @@
   "require": {
     "php": "^8.1",
     "auto1-oss/service-api-request": "^1.0",
-    "auto1-oss/service-api-components-bundle": "^1.0",
+    "auto1-oss/service-api-components-bundle": "dev-support-multiform-data",
+    "psr/http-message": "^1.1|^2.0",
+    "psr/http-factory": "^1.0",
     "symfony/serializer" : "~6.4|~7.0",
     "symfony/monolog-bridge": "~6.4|~7.0",
     "symfony/dependency-injection": "~6.4|~7.0",
@@ -37,5 +39,11 @@
   },
   "autoload-dev": {
     "psr-4": { "Tests\\Auto1\\ServiceAPIHandlerBundle\\": "Tests"}
-  }
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "git@github.com:aviator-ua/service-api-components-bundle.git"
+    }
+  ]
 }

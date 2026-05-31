@@ -18,6 +18,21 @@ services:
         tags:
             - {name: 'nelmio_api_doc.route_describer', priority: -400}
 
+    # Request data extractors
+    auto1.api_handler.request_data_extractor.multipart:
+        class: Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\MultipartRequestDataExtractor
+        arguments:
+            - '@?Psr\Http\Message\StreamFactoryInterface'
+        tags:
+            - { name: 'auto1.api_handler.request_data_extractor', priority: 100 }
+
+    auto1.api_handler.request_data_extractor.default:
+        class: Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\DefaultRequestDataExtractor
+        arguments:
+            - '@auto1.api.request.serializer'
+        tags:
+            - { name: 'auto1.api_handler.request_data_extractor', priority: -100 }
+
     # Argument resolver
     auto1.api_handler.argument_resolver.service_request:
         class: Auto1\ServiceAPIHandlerBundle\ArgumentResolver\ServiceRequestResolver
@@ -25,6 +40,7 @@ services:
             - '@auto1.api.request.serializer'
             - '@auto1.api.endpoint.registry'
             - '@auto1.api_handler.response_listener.service_response'
+            - !tagged_iterator auto1.api_handler.request_data_extractor
         tags:
             - { name: 'controller.argument_value_resolver', priority: 150 }
 
