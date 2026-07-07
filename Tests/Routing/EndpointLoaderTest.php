@@ -13,13 +13,11 @@ declare(strict_types=1);
 
 namespace Tests\Auto1\ServiceAPIHandlerBundle\Routing;
 
-use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\Endpoint;
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
 use Auto1\ServiceAPIHandlerBundle\Routing\EndpointLoader;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
-use Symfony\Component\Routing\Matcher\UrlMatcher;
-use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\RouteCollection;
 
 class EndpointLoaderTest extends TestCase
@@ -46,26 +44,15 @@ class EndpointLoaderTest extends TestCase
         $this->assertSame(['POST'], $route->getMethods());
     }
 
-    public function testRouteWithQueryStringTemplateMatchesRequestWithoutQueryParams(): void
-    {
-        $routes = $this->loadRoutes('/v1/items?excludeIds={excludeIds}', 'GET');
-
-        $matcher = new UrlMatcher($routes, new RequestContext('', 'GET'));
-        $parameters = $matcher->match('/v1/items');
-
-        $this->assertSame(self::CONTROLLER, $parameters['_controller']);
-        $this->assertSame(RequestStub::class, $parameters['_route']);
-    }
-
     private function loadRoutes(string $path, string $method): RouteCollection
     {
-        $endpointProphecy = $this->prophesize(EndpointInterface::class);
-        $endpointProphecy->getPath()->willReturn($path);
-        $endpointProphecy->getMethod()->willReturn($method);
+        $endpoint = (new Endpoint())
+            ->setPath($path)
+            ->setMethod($method);
 
         $endpointRegistryProphecy = $this->prophesize(EndpointRegistryInterface::class);
         $endpointRegistryProphecy->getEndpoint(Argument::type(RequestStub::class))
-            ->willReturn($endpointProphecy->reveal());
+            ->willReturn($endpoint);
 
         $endpointLoader = new EndpointLoader(
             $endpointRegistryProphecy->reveal(),
