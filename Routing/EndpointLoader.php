@@ -59,7 +59,7 @@ class EndpointLoader extends Loader
 
             //TODO: go through $requestClass and set requirements \d+ etc based on type
             $route = new Route(
-                $endpoint->getPath(),
+                $this->stripQueryString($endpoint->getPath()),
                 ['_controller' => $controller]
             );
             $route->setMethods([$endpoint->getMethod()]);
@@ -76,5 +76,15 @@ class EndpointLoader extends Loader
     public function supports($resource, $type = null): bool
     {
         return 'endpoint_handler' === $type;
+    }
+
+    /**
+     * Endpoint paths may contain a query string template (e.g. "/v1/cars?ids={ids}") used by API clients
+     * to build request URIs. Routes are matched against the path info only, so the query string must not
+     * be part of the route path.
+     */
+    private function stripQueryString(string $path): string
+    {
+        return explode('?', $path, 2)[0];
     }
 }
