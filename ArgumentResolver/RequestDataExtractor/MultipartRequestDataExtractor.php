@@ -19,14 +19,16 @@ use LogicException;
 use Psr\Http\Message\StreamFactoryInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 use function array_merge;
 use function is_array;
 use function sprintf;
+use function str_starts_with;
 
 class MultipartRequestDataExtractor implements RequestDataExtractorInterface
 {
-    public const FORMAT = 'multipart';
+    private const CONTENT_TYPE = 'multipart/form-data';
 
     private ?StreamFactoryInterface $streamFactory;
 
@@ -37,18 +39,29 @@ class MultipartRequestDataExtractor implements RequestDataExtractorInterface
 
     public function supports(EndpointInterface $endpoint): bool
     {
-        return self::FORMAT === $endpoint->getRequestFormat();
+        return EndpointInterface::FORMAT_MULTIPART === $endpoint->getRequestFormat();
     }
 
     public function extract(Request $request, EndpointInterface $endpoint): array
     {
-        if (null === $this->streamFactory) {
-            throw new LogicException(
+        // PHP populates $_POST / $_FILES for POST requests only; for any other method the
+        // multipart body would be silently ignored and the payload would come out empty.
+        if (!$request->isMethod(Request::METHOD_POST)) {
+            throw new BadRequestHttpException(
                 sprintf(
-                    'A PSR-17 "%s" must be wired to handle multipart/form-data endpoints. '
-                    . 'Install a PSR-7 implementation (e.g. guzzlehttp/psr7, nyholm/psr7) '
-                    . 'and register its stream factory.',
-                    StreamFactoryInterface::class
+                    'multipart/form-data endpoints only support POST, got "%s".',
+                    $request->getMethod()
+                )
+            );
+        }
+
+        $contentType = (string) $request->headers->get('CONTENT_TYPE');
+        if (!str_starts_with($contentType, self::CONTENT_TYPE)) {
+            throw new BadRequestHttpException(
+                sprintf(
+                    'Expected "%s" content type, got "%s".',
+                    self::CONTENT_TYPE,
+                    $contentType
                 )
             );
         }
@@ -70,10 +83,31 @@ class MultipartRequestDataExtractor implements RequestDataExtractorInterface
                 continue;
             }
 
-            if ($value instanceof UploadedFile) {
-                $stream = $this->streamFactory->createStreamFromFile($value->getRealPath(), 'r');
-                $wrapped[$key] = new UploadedFileStream($stream, $value);
+            // An unfilled optional file input arrives as null and is intentionally
+            // omitted, so the request DTO keeps its default value.
+            if (!$value instanceof UploadedFile) {
+                continue;
             }
+
+            if (!$value->isValid()) {
+                throw new BadRequestHttpException(
+                    sprintf('Upload failed for field "%s": %s', $key, $value->getErrorMessage())
+                );
+            }
+
+            if (null === $this->streamFactory) {
+                throw new LogicException(
+                    sprintf(
+                        'A PSR-17 "%s" must be wired to handle multipart/form-data file uploads. '
+                        . 'Install a PSR-7 implementation (e.g. guzzlehttp/psr7, nyholm/psr7) '
+                        . 'and register its stream factory.',
+                        StreamFactoryInterface::class
+                    )
+                );
+            }
+
+            $stream = $this->streamFactory->createStreamFromFile($value->getPathname(), 'r');
+            $wrapped[$key] = new UploadedFileStream($stream, $value);
         }
 
         return $wrapped;

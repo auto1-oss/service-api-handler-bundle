@@ -13,12 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor;
 
-use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\Endpoint;
 use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\DefaultRequestDataExtractor;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
+use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 
 class DefaultRequestDataExtractorTest extends TestCase
 {
@@ -29,15 +30,12 @@ class DefaultRequestDataExtractorTest extends TestCase
      */
     private DecoderInterface $decoder;
 
-    /**
-     * @var EndpointInterface&MockObject
-     */
-    private EndpointInterface $endpoint;
+    private Endpoint $endpoint;
 
     protected function setUp(): void
     {
         $this->decoder = $this->createMock(DecoderInterface::class);
-        $this->endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpoint = new Endpoint();
     }
 
     private function getCut(): DefaultRequestDataExtractor
@@ -71,13 +69,10 @@ class DefaultRequestDataExtractorTest extends TestCase
             $targetBody
         );
 
-        $this->endpoint
-            ->method('getRequestFormat')
-            ->willReturn(self::TARGET_FORMAT)
-        ;
+        $this->endpoint->setRequestFormat(self::TARGET_FORMAT);
 
         $this->decoder
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('decode')
             ->with($targetBody, self::TARGET_FORMAT)
             ->willReturn($targetDecoded)
@@ -110,5 +105,49 @@ class DefaultRequestDataExtractorTest extends TestCase
         $result = $extractor->extract($request, $this->endpoint);
 
         self::assertSame(array_merge($targetAttributes, $targetQuery), $result);
+    }
+
+    public function testExtractDecodesZeroStringBody(): void
+    {
+        $targetBody = '0';
+        $targetDecoded = ['targetBodyKey' => 'targetBodyValue'];
+
+        $request = new Request([], [], [], [], [], [], $targetBody);
+
+        $this->endpoint->setRequestFormat(self::TARGET_FORMAT);
+
+        $this->decoder
+            ->expects(self::once())
+            ->method('decode')
+            ->with($targetBody, self::TARGET_FORMAT)
+            ->willReturn($targetDecoded)
+        ;
+
+        $extractor = $this->getCut();
+
+        $result = $extractor->extract($request, $this->endpoint);
+
+        self::assertSame($targetDecoded, $result);
+    }
+
+    public function testExtractPropagatesDecodeException(): void
+    {
+        $targetBody = 'not-a-valid-payload';
+        $targetException = new NotEncodableValueException();
+
+        $request = new Request([], [], [], [], [], [], $targetBody);
+
+        $this->endpoint->setRequestFormat(self::TARGET_FORMAT);
+
+        $this->decoder
+            ->method('decode')
+            ->with($targetBody, self::TARGET_FORMAT)
+            ->willThrowException($targetException)
+        ;
+
+        $extractor = $this->getCut();
+
+        $this->expectException(NotEncodableValueException::class);
+        $extractor->extract($request, $this->endpoint);
     }
 }

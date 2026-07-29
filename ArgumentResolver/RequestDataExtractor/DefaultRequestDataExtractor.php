@@ -35,10 +35,12 @@ class DefaultRequestDataExtractor implements RequestDataExtractorInterface
 
     public function extract(Request $request, EndpointInterface $endpoint): array
     {
+        $decoded = [];
+
         $body = $request->getContent();
-        $decoded = !empty($body)
-            ? $this->decoder->decode($body, $endpoint->getRequestFormat())
-            : [];
+        if ('' !== $body) {
+            $decoded = $this->decoder->decode($body, $endpoint->getRequestFormat());
+        }
 
         return array_merge(
             $decoded,

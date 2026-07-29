@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Auto1\ServiceAPIHandlerBundle\ArgumentResolver;
 
-use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\Endpoint;
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
 use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\RequestDataExtractorInterface;
 use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\ServiceRequestResolver;
@@ -23,6 +23,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 
@@ -70,15 +71,26 @@ class ServiceRequestResolverTest extends TestCase
         return new ArgumentMetadata('foo', RequestStub::class, false, false, null);
     }
 
+    private function createEndpoint(string $requestClass, string $requestFormat): Endpoint
+    {
+        $endpoint = new Endpoint();
+        $endpoint->setRequestClass($requestClass);
+        $endpoint->setRequestFormat($requestFormat);
+
+        return $endpoint;
+    }
+
     public function testResolveWrongRequestClass(): void
     {
-        $endpoint = $this->createMock(EndpointInterface::class);
+        $endpoint = $this->createEndpoint(\stdClass::class, self::TARGET_FORMAT);
         $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $endpoint->method('getRequestClass')->willReturn(\stdClass::class);
+
+        $request = new Request();
+        $metadata = $this->createMetadata();
 
         $cut = $this->getCut();
 
-        $generator = $cut->resolve(new Request(), $this->createMetadata());
+        $generator = $cut->resolve($request, $metadata);
 
         $this->expectException(\LogicException::class);
         $generator->current();
@@ -86,15 +98,16 @@ class ServiceRequestResolverTest extends TestCase
 
     public function testResolveNoSupportingExtractor(): void
     {
-        $endpoint = $this->createMock(EndpointInterface::class);
+        $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
         $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
-        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_FORMAT);
         $this->extractor->method('supports')->with($endpoint)->willReturn(false);
+
+        $request = new Request();
+        $metadata = $this->createMetadata();
 
         $cut = $this->getCut();
 
-        $generator = $cut->resolve(new Request(), $this->createMetadata());
+        $generator = $cut->resolve($request, $metadata);
 
         $this->expectException(\LogicException::class);
         $generator->current();
@@ -105,23 +118,47 @@ class ServiceRequestResolverTest extends TestCase
         $targetBody = 'foobar';
         $targetAttributes = ['targetAttributeKey' => 'targetAttributeValue'];
         $targetExtracted = ['targetBodyKey' => 'targetBodyValue', 'targetAttributeKey' => 'targetAttributeValue'];
+        $targetException = new NotNormalizableValueException();
 
         $request = new Request([], [], $targetAttributes, [], [], [], $targetBody);
+        $metadata = $this->createMetadata();
 
-        $endpoint = $this->createMock(EndpointInterface::class);
+        $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
         $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
-        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_FORMAT);
         $this->extractor->method('supports')->with($endpoint)->willReturn(true);
         $this->extractor->method('extract')->with($request, $endpoint)->willReturn($targetExtracted);
         $this->denormalizer
             ->method('denormalize')
             ->with($targetExtracted, RequestStub::class, self::TARGET_FORMAT)
-            ->willThrowException(new NotNormalizableValueException());
+            ->willThrowException($targetException);
 
         $cut = $this->getCut();
 
-        $generator = $cut->resolve($request, $this->createMetadata());
+        $generator = $cut->resolve($request, $metadata);
+
+        $this->expectException(BadRequestHttpException::class);
+        $generator->current();
+    }
+
+    public function testResolveDecodeException(): void
+    {
+        $targetBody = 'not-a-valid-payload';
+        $targetException = new NotEncodableValueException();
+
+        $request = new Request([], [], [], [], [], [], $targetBody);
+        $metadata = $this->createMetadata();
+
+        $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
+        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $this->extractor->method('supports')->with($endpoint)->willReturn(true);
+        $this->extractor
+            ->method('extract')
+            ->with($request, $endpoint)
+            ->willThrowException($targetException);
+
+        $cut = $this->getCut();
+
+        $generator = $cut->resolve($request, $metadata);
 
         $this->expectException(BadRequestHttpException::class);
         $generator->current();
@@ -140,11 +177,10 @@ class ServiceRequestResolverTest extends TestCase
         $targetDenormalized = new RequestStub();
 
         $request = new Request($targetQuery, [], $targetAttributes, [], [], [], $targetBody);
+        $metadata = $this->createMetadata();
 
-        $endpoint = $this->createMock(EndpointInterface::class);
+        $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
         $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
-        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_FORMAT);
         $this->extractor->method('supports')->with($endpoint)->willReturn(true);
         $this->extractor->method('extract')->with($request, $endpoint)->willReturn($targetExtracted);
         $this->denormalizer
@@ -154,9 +190,11 @@ class ServiceRequestResolverTest extends TestCase
 
         $cut = $this->getCut();
 
-        $generator = $cut->resolve($request, $this->createMetadata());
+        $generator = $cut->resolve($request, $metadata);
 
-        $this->assertSame($targetDenormalized, $generator->current());
+        $result = $generator->current();
+
+        self::assertSame($targetDenormalized, $result);
     }
 
     public function testResolvePicksFirstSupportingExtractor(): void
@@ -169,17 +207,17 @@ class ServiceRequestResolverTest extends TestCase
         $this->extractors = [$skippedExtractor, $matchingExtractor];
 
         $request = new Request();
-        $endpoint = $this->createMock(EndpointInterface::class);
+        $metadata = $this->createMetadata();
+
+        $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
         $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $endpoint->method('getRequestClass')->willReturn(RequestStub::class);
-        $endpoint->method('getRequestFormat')->willReturn(self::TARGET_MULTIPART_FORMAT);
 
-        $skippedExtractor->expects($this->once())->method('supports')->with($endpoint)->willReturn(false);
-        $skippedExtractor->expects($this->never())->method('extract');
+        $skippedExtractor->expects(self::once())->method('supports')->with($endpoint)->willReturn(false);
+        $skippedExtractor->expects(self::never())->method('extract');
 
-        $matchingExtractor->expects($this->once())->method('supports')->with($endpoint)->willReturn(true);
+        $matchingExtractor->expects(self::once())->method('supports')->with($endpoint)->willReturn(true);
         $matchingExtractor
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('extract')
             ->with($request, $endpoint)
             ->willReturn($targetExtracted);
@@ -191,8 +229,10 @@ class ServiceRequestResolverTest extends TestCase
 
         $cut = $this->getCut();
 
-        $generator = $cut->resolve($request, $this->createMetadata());
+        $generator = $cut->resolve($request, $metadata);
 
-        $this->assertSame($targetDenormalized, $generator->current());
+        $result = $generator->current();
+
+        self::assertSame($targetDenormalized, $result);
     }
 }

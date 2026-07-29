@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor;
 
-use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\Endpoint;
 use Auto1\ServiceAPIComponentsBundle\Multipart\UploadedFileStream;
 use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\MultipartRequestDataExtractor;
 use LogicException;
@@ -23,25 +23,43 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class MultipartRequestDataExtractorTest extends TestCase
 {
     private const TARGET_FORMAT = 'multipart';
+    private const TARGET_TMP_PREFIX = 'multipart-test-';
+    private const TARGET_POST_SERVER = [
+        'REQUEST_METHOD' => 'POST',
+        'CONTENT_TYPE' => 'multipart/form-data; boundary=test',
+    ];
 
     /**
      * @var (StreamFactoryInterface&MockObject)|null
      */
     private ?StreamFactoryInterface $streamFactory;
 
+    private Endpoint $endpoint;
+
     /**
-     * @var EndpointInterface&MockObject
+     * @var string[]
      */
-    private EndpointInterface $endpoint;
+    private array $tmpFiles = [];
 
     protected function setUp(): void
     {
         $this->streamFactory = $this->createMock(StreamFactoryInterface::class);
-        $this->endpoint = $this->createMock(EndpointInterface::class);
+        $this->endpoint = new Endpoint();
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->tmpFiles as $tmpFile) {
+            if (file_exists($tmpFile)) {
+                unlink($tmpFile);
+            }
+        }
+        $this->tmpFiles = [];
     }
 
     private function getCut(): MultipartRequestDataExtractor
@@ -49,12 +67,19 @@ class MultipartRequestDataExtractorTest extends TestCase
         return new MultipartRequestDataExtractor($this->streamFactory);
     }
 
+    private function createTmpFile(string $content): string
+    {
+        $tmpDir = sys_get_temp_dir();
+        $tmpFile = tempnam($tmpDir, self::TARGET_TMP_PREFIX);
+        file_put_contents($tmpFile, $content);
+        $this->tmpFiles[] = $tmpFile;
+
+        return $tmpFile;
+    }
+
     public function testSupportsMultipartFormat(): void
     {
-        $this->endpoint
-            ->method('getRequestFormat')
-            ->willReturn(self::TARGET_FORMAT)
-        ;
+        $this->endpoint->setRequestFormat(self::TARGET_FORMAT);
 
         $extractor = $this->getCut();
 
@@ -67,10 +92,7 @@ class MultipartRequestDataExtractorTest extends TestCase
     {
         $targetOtherFormat = 'json';
 
-        $this->endpoint
-            ->method('getRequestFormat')
-            ->willReturn($targetOtherFormat)
-        ;
+        $this->endpoint->setRequestFormat($targetOtherFormat);
 
         $extractor = $this->getCut();
 
@@ -89,8 +111,7 @@ class MultipartRequestDataExtractorTest extends TestCase
         $targetAttributes = ['targetAttributeKey' => 'targetAttributeValue'];
         $targetFileContent = 'hello';
 
-        $targetTmp = tempnam(sys_get_temp_dir(), 'multipart-test-');
-        file_put_contents($targetTmp, $targetFileContent);
+        $targetTmp = $this->createTmpFile($targetFileContent);
         $targetUploadedFile = new UploadedFile($targetTmp, $targetFileName, $targetMimeType, null, true);
 
         $request = new Request(
@@ -99,7 +120,7 @@ class MultipartRequestDataExtractorTest extends TestCase
             $targetAttributes,
             [],
             [$targetFileFieldKey => $targetUploadedFile],
-            ['CONTENT_TYPE' => 'multipart/form-data; boundary=test']
+            self::TARGET_POST_SERVER
         );
 
         $targetStream = $this->createMock(StreamInterface::class);
@@ -114,18 +135,129 @@ class MultipartRequestDataExtractorTest extends TestCase
 
         $result = $extractor->extract($request, $this->endpoint);
 
-        $this->assertSame($targetTextFields['targetTextFieldKey'], $result['targetTextFieldKey']);
-        $this->assertSame($targetQuery['targetQueryKey'], $result['targetQueryKey']);
-        $this->assertSame($targetAttributes['targetAttributeKey'], $result['targetAttributeKey']);
-        $this->assertInstanceOf(UploadedFileStream::class, $result[$targetFileFieldKey]);
-
-        unlink($targetTmp);
+        self::assertSame($targetTextFields['targetTextFieldKey'], $result['targetTextFieldKey']);
+        self::assertSame($targetQuery['targetQueryKey'], $result['targetQueryKey']);
+        self::assertSame($targetAttributes['targetAttributeKey'], $result['targetAttributeKey']);
+        self::assertInstanceOf(UploadedFileStream::class, $result[$targetFileFieldKey]);
     }
 
-    public function testExtractThrowsWhenStreamFactoryMissing(): void
+    public function testExtractWrapsNestedFileArrays(): void
     {
+        $targetFileName = 'doc.pdf';
+        $targetMimeType = 'application/pdf';
+        $targetFilesFieldKey = 'docs';
+        $targetFileContent = 'content';
+
+        $targetFirstTmp = $this->createTmpFile($targetFileContent);
+        $targetSecondTmp = $this->createTmpFile($targetFileContent);
+        $targetFirstFile = new UploadedFile($targetFirstTmp, $targetFileName, $targetMimeType, null, true);
+        $targetSecondFile = new UploadedFile($targetSecondTmp, $targetFileName, $targetMimeType, null, true);
+
+        $request = new Request(
+            [],
+            [],
+            [],
+            [],
+            [$targetFilesFieldKey => [$targetFirstFile, $targetSecondFile]],
+            self::TARGET_POST_SERVER
+        );
+
+        $targetStream = $this->createMock(StreamInterface::class);
+        $this->streamFactory
+            ->expects(self::exactly(2))
+            ->method('createStreamFromFile')
+            ->willReturn($targetStream)
+        ;
+
+        $extractor = $this->getCut();
+
+        $result = $extractor->extract($request, $this->endpoint);
+
+        self::assertCount(2, $result[$targetFilesFieldKey]);
+        self::assertInstanceOf(UploadedFileStream::class, $result[$targetFilesFieldKey][0]);
+        self::assertInstanceOf(UploadedFileStream::class, $result[$targetFilesFieldKey][1]);
+    }
+
+    public function testExtractOmitsUnfilledOptionalFileInput(): void
+    {
+        $targetFileFieldKey = 'optional';
+        $targetNoFileUpload = [
+            'name' => '',
+            'type' => '',
+            'tmp_name' => '',
+            'error' => UPLOAD_ERR_NO_FILE,
+            'size' => 0,
+        ];
+
+        $request = new Request(
+            [],
+            [],
+            [],
+            [],
+            [$targetFileFieldKey => $targetNoFileUpload],
+            self::TARGET_POST_SERVER
+        );
+
+        $this->streamFactory
+            ->expects(self::never())
+            ->method('createStreamFromFile')
+        ;
+
+        $extractor = $this->getCut();
+
+        $result = $extractor->extract($request, $this->endpoint);
+
+        self::assertArrayNotHasKey($targetFileFieldKey, $result);
+    }
+
+    public function testExtractThrowsOnInvalidUpload(): void
+    {
+        $targetFileName = 'too-big.png';
+        $targetFileFieldKey = 'attachment';
+        $targetFileContent = 'partial';
+
+        $targetTmp = $this->createTmpFile($targetFileContent);
+        $targetUploadedFile = new UploadedFile($targetTmp, $targetFileName, null, UPLOAD_ERR_PARTIAL, true);
+
+        $request = new Request(
+            [],
+            [],
+            [],
+            [],
+            [$targetFileFieldKey => $targetUploadedFile],
+            self::TARGET_POST_SERVER
+        );
+
+        $this->streamFactory
+            ->expects(self::never())
+            ->method('createStreamFromFile')
+        ;
+
+        $extractor = $this->getCut();
+
+        $this->expectException(BadRequestHttpException::class);
+        $extractor->extract($request, $this->endpoint);
+    }
+
+    public function testExtractThrowsWhenStreamFactoryMissingForFileUpload(): void
+    {
+        $targetFileName = 'avatar.png';
+        $targetMimeType = 'image/png';
+        $targetFileFieldKey = 'avatar';
+        $targetFileContent = 'hello';
+
+        $targetTmp = $this->createTmpFile($targetFileContent);
+        $targetUploadedFile = new UploadedFile($targetTmp, $targetFileName, $targetMimeType, null, true);
+
         $this->streamFactory = null;
-        $request = new Request();
+        $request = new Request(
+            [],
+            [],
+            [],
+            [],
+            [$targetFileFieldKey => $targetUploadedFile],
+            self::TARGET_POST_SERVER
+        );
 
         $extractor = $this->getCut();
 
@@ -133,16 +265,54 @@ class MultipartRequestDataExtractorTest extends TestCase
         $extractor->extract($request, $this->endpoint);
     }
 
-    public function testExtractRequiresFactoryEvenWhenNoFilesPresent(): void
+    public function testExtractDoesNotRequireFactoryWhenNoFilesPresent(): void
     {
         $targetTextFields = ['targetTextFieldKey' => 'targetTextFieldValue'];
 
         $this->streamFactory = null;
-        $request = new Request([], $targetTextFields);
+        $request = new Request(
+            [],
+            $targetTextFields,
+            [],
+            [],
+            [],
+            self::TARGET_POST_SERVER
+        );
 
         $extractor = $this->getCut();
 
-        $this->expectException(LogicException::class);
+        $result = $extractor->extract($request, $this->endpoint);
+
+        self::assertSame($targetTextFields, $result);
+    }
+
+    public function testExtractRejectsNonPostRequest(): void
+    {
+        $targetPutServer = [
+            'REQUEST_METHOD' => 'PUT',
+            'CONTENT_TYPE' => 'multipart/form-data; boundary=test',
+        ];
+
+        $request = new Request([], [], [], [], [], $targetPutServer);
+
+        $extractor = $this->getCut();
+
+        $this->expectException(BadRequestHttpException::class);
+        $extractor->extract($request, $this->endpoint);
+    }
+
+    public function testExtractRejectsNonMultipartContentType(): void
+    {
+        $targetJsonServer = [
+            'REQUEST_METHOD' => 'POST',
+            'CONTENT_TYPE' => 'application/json',
+        ];
+
+        $request = new Request([], [], [], [], [], $targetJsonServer);
+
+        $extractor = $this->getCut();
+
+        $this->expectException(BadRequestHttpException::class);
         $extractor->extract($request, $this->endpoint);
     }
 }

@@ -12,6 +12,7 @@
 namespace Auto1\ServiceAPIHandlerBundle;
 
 use Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass\EndpointRouterCompilerPass;
+use Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass\MultipartStreamFactoryCompilerPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
@@ -22,5 +23,6 @@ class Auto1ServiceAPIHandlerBundle extends Bundle
         parent::build($container);
 
         $container->addCompilerPass(new EndpointRouterCompilerPass());
+        $container->addCompilerPass(new MultipartStreamFactoryCompilerPass());
     }
 }
