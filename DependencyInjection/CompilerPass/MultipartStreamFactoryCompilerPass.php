@@ -13,12 +13,14 @@ declare(strict_types=1);
 
 namespace Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass;
 
+use Auto1\ServiceAPIComponentsBundle\DependencyInjection\CompilerPass\EndpointProviderCompilerPass;
 use Auto1\ServiceAPIComponentsBundle\Exception\Core\ConfigurationException;
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointImmutable;
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
-use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointProviderInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 
 use function implode;
 use function in_array;
@@ -28,10 +30,16 @@ use function sprintf;
  * Fails container compilation when a controller-handled multipart endpoint is registered
  * but no PSR-17 stream factory is available — so the misconfiguration surfaces on deploy
  * instead of on the first upload request.
+ *
+ * Covers endpoints wired through the generated endpoints.yaml and the `*Controller::*Action`
+ * convention; manually-routed handlers are the integrator's responsibility and fail at
+ * runtime with the LogicException thrown by MultipartRequestDataExtractor instead.
+ *
+ * Must run after the components-bundle EndpointProviderCompilerPass has baked the endpoints
+ * into the registry definition — hence the negative pass priority in the bundle class.
  */
 class MultipartStreamFactoryCompilerPass implements CompilerPassInterface
 {
-    private const ENDPOINT_PROVIDER_TAG = 'auto1.api.endpoint_provider';
     private const CONTROLLER_MAPPING_PARAMETER = 'auto1.api_handler.controller_request_mapping';
 
     public function process(ContainerBuilder $container): void
@@ -76,24 +84,38 @@ class MultipartStreamFactoryCompilerPass implements CompilerPassInterface
     }
 
     /**
+     * Reads the endpoints the components-bundle EndpointProviderCompilerPass has already baked
+     * into the registry definition — instead of instantiating every tagged provider (and its
+     * constructor dependency graph) a second time on each compile.
+     *
      * @return EndpointInterface[]
      */
     private function getEndpoints(ContainerBuilder $container): array
     {
-        $endpoints = [];
-        foreach ($container->findTaggedServiceIds(self::ENDPOINT_PROVIDER_TAG) as $id => $tags) {
-            $provider = $container->resolveServices($container->getDefinition($id));
+        if (!$container->hasDefinition(EndpointProviderCompilerPass::SERVICE_ENDPOINT_REGISTRY)) {
+            return [];
+        }
 
-            // Misconfigured providers are reported by the components-bundle compiler pass.
-            if (!$provider instanceof EndpointProviderInterface) {
+        $registryDefinition = $container->getDefinition(
+            EndpointProviderCompilerPass::SERVICE_ENDPOINT_REGISTRY
+        );
+
+        $endpoints = [];
+        foreach ($registryDefinition->getMethodCalls() as [$methodName, $arguments]) {
+            if (EndpointProviderCompilerPass::METHOD_REGISTER_ENDPOINT !== $methodName) {
                 continue;
             }
 
-            foreach ($provider->getEndpoints() as $endpoint) {
-                if ($endpoint instanceof EndpointInterface) {
-                    $endpoints[] = $endpoint;
-                }
+            $endpointDefinition = $arguments[0] ?? null;
+            if (!$endpointDefinition instanceof Definition
+                || EndpointImmutable::class !== $endpointDefinition->getClass()
+            ) {
+                continue;
             }
+
+            // Scalar constructor args only — no services resolved, no provider constructors
+            // run; an arg-order change in the vendor pass would fail loudly here.
+            $endpoints[] = new EndpointImmutable(...$endpointDefinition->getArguments());
         }
 
         return $endpoints;

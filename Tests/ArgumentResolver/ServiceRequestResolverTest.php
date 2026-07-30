@@ -83,14 +83,17 @@ class ServiceRequestResolverTest extends TestCase
     public function testResolveWrongRequestClass(): void
     {
         $endpoint = $this->createEndpoint(\stdClass::class, self::TARGET_FORMAT);
-        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $this->endpointRegistry
+            ->method('getEndpoint')
+            ->willReturn($endpoint)
+        ;
 
         $request = new Request();
         $metadata = $this->createMetadata();
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
-        $generator = $cut->resolve($request, $metadata);
+        $generator = $target->resolve($request, $metadata);
 
         $this->expectException(\LogicException::class);
         $generator->current();
@@ -99,15 +102,22 @@ class ServiceRequestResolverTest extends TestCase
     public function testResolveNoSupportingExtractor(): void
     {
         $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
-        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $this->extractor->method('supports')->with($endpoint)->willReturn(false);
+        $this->endpointRegistry
+            ->method('getEndpoint')
+            ->willReturn($endpoint)
+        ;
+        $this->extractor
+            ->method('supports')
+            ->with($endpoint)
+            ->willReturn(false)
+        ;
 
         $request = new Request();
         $metadata = $this->createMetadata();
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
-        $generator = $cut->resolve($request, $metadata);
+        $generator = $target->resolve($request, $metadata);
 
         $this->expectException(\LogicException::class);
         $generator->current();
@@ -124,17 +134,29 @@ class ServiceRequestResolverTest extends TestCase
         $metadata = $this->createMetadata();
 
         $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
-        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $this->extractor->method('supports')->with($endpoint)->willReturn(true);
-        $this->extractor->method('extract')->with($request, $endpoint)->willReturn($targetExtracted);
+        $this->endpointRegistry
+            ->method('getEndpoint')
+            ->willReturn($endpoint)
+        ;
+        $this->extractor
+            ->method('supports')
+            ->with($endpoint)
+            ->willReturn(true)
+        ;
+        $this->extractor
+            ->method('extract')
+            ->with($request, $endpoint)
+            ->willReturn($targetExtracted)
+        ;
         $this->denormalizer
             ->method('denormalize')
             ->with($targetExtracted, RequestStub::class, self::TARGET_FORMAT)
-            ->willThrowException($targetException);
+            ->willThrowException($targetException)
+        ;
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
-        $generator = $cut->resolve($request, $metadata);
+        $generator = $target->resolve($request, $metadata);
 
         $this->expectException(BadRequestHttpException::class);
         $generator->current();
@@ -149,16 +171,24 @@ class ServiceRequestResolverTest extends TestCase
         $metadata = $this->createMetadata();
 
         $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
-        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $this->extractor->method('supports')->with($endpoint)->willReturn(true);
+        $this->endpointRegistry
+            ->method('getEndpoint')
+            ->willReturn($endpoint)
+        ;
+        $this->extractor
+            ->method('supports')
+            ->with($endpoint)
+            ->willReturn(true)
+        ;
         $this->extractor
             ->method('extract')
             ->with($request, $endpoint)
-            ->willThrowException($targetException);
+            ->willThrowException($targetException)
+        ;
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
-        $generator = $cut->resolve($request, $metadata);
+        $generator = $target->resolve($request, $metadata);
 
         $this->expectException(BadRequestHttpException::class);
         $generator->current();
@@ -180,17 +210,29 @@ class ServiceRequestResolverTest extends TestCase
         $metadata = $this->createMetadata();
 
         $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_FORMAT);
-        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
-        $this->extractor->method('supports')->with($endpoint)->willReturn(true);
-        $this->extractor->method('extract')->with($request, $endpoint)->willReturn($targetExtracted);
+        $this->endpointRegistry
+            ->method('getEndpoint')
+            ->willReturn($endpoint)
+        ;
+        $this->extractor
+            ->method('supports')
+            ->with($endpoint)
+            ->willReturn(true)
+        ;
+        $this->extractor
+            ->method('extract')
+            ->with($request, $endpoint)
+            ->willReturn($targetExtracted)
+        ;
         $this->denormalizer
             ->method('denormalize')
             ->with($targetExtracted, RequestStub::class, self::TARGET_FORMAT)
-            ->willReturn($targetDenormalized);
+            ->willReturn($targetDenormalized)
+        ;
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
-        $generator = $cut->resolve($request, $metadata);
+        $generator = $target->resolve($request, $metadata);
 
         $result = $generator->current();
 
@@ -210,26 +252,44 @@ class ServiceRequestResolverTest extends TestCase
         $metadata = $this->createMetadata();
 
         $endpoint = $this->createEndpoint(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
-        $this->endpointRegistry->method('getEndpoint')->willReturn($endpoint);
+        $this->endpointRegistry
+            ->method('getEndpoint')
+            ->willReturn($endpoint)
+        ;
 
-        $skippedExtractor->expects(self::once())->method('supports')->with($endpoint)->willReturn(false);
-        $skippedExtractor->expects(self::never())->method('extract');
+        $skippedExtractor
+            ->expects(self::once())
+            ->method('supports')
+            ->with($endpoint)
+            ->willReturn(false)
+        ;
+        $skippedExtractor
+            ->expects(self::never())
+            ->method('extract')
+        ;
 
-        $matchingExtractor->expects(self::once())->method('supports')->with($endpoint)->willReturn(true);
+        $matchingExtractor
+            ->expects(self::once())
+            ->method('supports')
+            ->with($endpoint)
+            ->willReturn(true)
+        ;
         $matchingExtractor
             ->expects(self::once())
             ->method('extract')
             ->with($request, $endpoint)
-            ->willReturn($targetExtracted);
+            ->willReturn($targetExtracted)
+        ;
 
         $this->denormalizer
             ->method('denormalize')
             ->with($targetExtracted, RequestStub::class, self::TARGET_MULTIPART_FORMAT)
-            ->willReturn($targetDenormalized);
+            ->willReturn($targetDenormalized)
+        ;
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
-        $generator = $cut->resolve($request, $metadata);
+        $generator = $target->resolve($request, $metadata);
 
         $result = $generator->current();
 

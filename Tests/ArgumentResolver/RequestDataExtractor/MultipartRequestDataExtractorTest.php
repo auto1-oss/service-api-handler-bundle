@@ -81,9 +81,9 @@ class MultipartRequestDataExtractorTest extends TestCase
     {
         $this->endpoint->setRequestFormat(self::TARGET_FORMAT);
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->supports($this->endpoint);
+        $result = $target->supports($this->endpoint);
 
         self::assertTrue($result);
     }
@@ -94,9 +94,9 @@ class MultipartRequestDataExtractorTest extends TestCase
 
         $this->endpoint->setRequestFormat($targetOtherFormat);
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->supports($this->endpoint);
+        $result = $target->supports($this->endpoint);
 
         self::assertFalse($result);
     }
@@ -123,17 +123,18 @@ class MultipartRequestDataExtractorTest extends TestCase
             self::TARGET_POST_SERVER
         );
 
+        $targetStreamReadMode = 'r';
         $targetStream = $this->createMock(StreamInterface::class);
         $this->streamFactory
             ->expects(self::once())
             ->method('createStreamFromFile')
-            ->with($targetTmp, 'r')
+            ->with($targetTmp, $targetStreamReadMode)
             ->willReturn($targetStream)
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertSame($targetTextFields['targetTextFieldKey'], $result['targetTextFieldKey']);
         self::assertSame($targetQuery['targetQueryKey'], $result['targetQueryKey']);
@@ -169,9 +170,9 @@ class MultipartRequestDataExtractorTest extends TestCase
             ->willReturn($targetStream)
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertCount(2, $result[$targetFilesFieldKey]);
         self::assertInstanceOf(UploadedFileStream::class, $result[$targetFilesFieldKey][0]);
@@ -203,9 +204,9 @@ class MultipartRequestDataExtractorTest extends TestCase
             ->method('createStreamFromFile')
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertArrayNotHasKey($targetFileFieldKey, $result);
     }
@@ -233,10 +234,10 @@ class MultipartRequestDataExtractorTest extends TestCase
             ->method('createStreamFromFile')
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectException(BadRequestHttpException::class);
-        $extractor->extract($request, $this->endpoint);
+        $target->extract($request, $this->endpoint);
     }
 
     public function testExtractThrowsWhenStreamFactoryMissingForFileUpload(): void
@@ -259,10 +260,10 @@ class MultipartRequestDataExtractorTest extends TestCase
             self::TARGET_POST_SERVER
         );
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectException(LogicException::class);
-        $extractor->extract($request, $this->endpoint);
+        $target->extract($request, $this->endpoint);
     }
 
     public function testExtractDoesNotRequireFactoryWhenNoFilesPresent(): void
@@ -279,9 +280,9 @@ class MultipartRequestDataExtractorTest extends TestCase
             self::TARGET_POST_SERVER
         );
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertSame($targetTextFields, $result);
     }
@@ -295,10 +296,10 @@ class MultipartRequestDataExtractorTest extends TestCase
 
         $request = new Request([], [], [], [], [], $targetPutServer);
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectException(BadRequestHttpException::class);
-        $extractor->extract($request, $this->endpoint);
+        $target->extract($request, $this->endpoint);
     }
 
     public function testExtractRejectsNonMultipartContentType(): void
@@ -310,9 +311,77 @@ class MultipartRequestDataExtractorTest extends TestCase
 
         $request = new Request([], [], [], [], [], $targetJsonServer);
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectException(BadRequestHttpException::class);
-        $extractor->extract($request, $this->endpoint);
+        $target->extract($request, $this->endpoint);
+    }
+
+    public function testExtractAllowsMethodOverrideOnWirePostRequest(): void
+    {
+        $targetTextFields = ['targetTextFieldKey' => 'targetTextFieldValue'];
+        $targetOverriddenServer = [
+            'REQUEST_METHOD' => 'POST',
+            'CONTENT_TYPE' => 'multipart/form-data; boundary=test',
+            'HTTP_X_HTTP_METHOD_OVERRIDE' => 'PUT',
+        ];
+
+        $request = new Request([], $targetTextFields, [], [], [], $targetOverriddenServer);
+
+        $target = $this->getCut();
+
+        $result = $target->extract($request, $this->endpoint);
+
+        self::assertSame($targetTextFields, $result);
+    }
+
+    public function testExtractAcceptsCaseVariantContentType(): void
+    {
+        $targetTextFields = ['targetTextFieldKey' => 'targetTextFieldValue'];
+        $targetCaseVariantServer = [
+            'REQUEST_METHOD' => 'POST',
+            'CONTENT_TYPE' => 'Multipart/Form-Data; boundary=test',
+        ];
+
+        $request = new Request([], $targetTextFields, [], [], [], $targetCaseVariantServer);
+
+        $target = $this->getCut();
+
+        $result = $target->extract($request, $this->endpoint);
+
+        self::assertSame($targetTextFields, $result);
+    }
+
+    public function testExtractAcceptsUrlEncodedContentType(): void
+    {
+        $targetTextFields = ['targetTextFieldKey' => 'targetTextFieldValue'];
+        $targetUrlEncodedServer = [
+            'REQUEST_METHOD' => 'POST',
+            'CONTENT_TYPE' => 'application/x-www-form-urlencoded',
+        ];
+
+        $request = new Request([], $targetTextFields, [], [], [], $targetUrlEncodedServer);
+
+        $target = $this->getCut();
+
+        $result = $target->extract($request, $this->endpoint);
+
+        self::assertSame($targetTextFields, $result);
+    }
+
+    public function testExtractRejectsUnparsedFormBody(): void
+    {
+        $targetUnparsedServer = [
+            'REQUEST_METHOD' => 'POST',
+            'CONTENT_TYPE' => 'multipart/form-data; boundary=test',
+            'CONTENT_LENGTH' => '1048576',
+        ];
+
+        $request = new Request([], [], [], [], [], $targetUnparsedServer);
+
+        $target = $this->getCut();
+
+        $this->expectException(BadRequestHttpException::class);
+        $target->extract($request, $this->endpoint);
     }
 }

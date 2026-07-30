@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace Tests\Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass;
 
+use Auto1\ServiceAPIComponentsBundle\DependencyInjection\CompilerPass\EndpointProviderCompilerPass;
 use Auto1\ServiceAPIComponentsBundle\Exception\Core\ConfigurationException;
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointImmutable;
 use Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass\MultipartStreamFactoryCompilerPass;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -26,9 +28,9 @@ class MultipartStreamFactoryCompilerPassTest extends TestCase
     private const TARGET_MULTIPART_FORMAT = 'multipart';
     private const TARGET_JSON_FORMAT = 'json';
     private const TARGET_MAPPING_PARAMETER = 'auto1.api_handler.controller_request_mapping';
-    private const TARGET_PROVIDER_TAG = 'auto1.api.endpoint_provider';
-    private const TARGET_PROVIDER_SERVICE_ID = 'target.endpoint_provider';
     private const TARGET_CONTROLLER_ACTION = 'App\Controller\UploadController::uploadAction';
+    private const TARGET_HTTP_METHOD = 'POST';
+    private const TARGET_PATH = '/v1/upload';
 
     private ContainerBuilder $container;
 
@@ -42,11 +44,31 @@ class MultipartStreamFactoryCompilerPassTest extends TestCase
         return new MultipartStreamFactoryCompilerPass();
     }
 
-    private function registerEndpointProvider(string $requestClass, string $requestFormat): void
+    private function registerEndpoint(string $requestClass, string $requestFormat): void
     {
-        $definition = new Definition(EndpointProviderStub::class, [$requestClass, $requestFormat]);
-        $definition->addTag(self::TARGET_PROVIDER_TAG);
-        $this->container->setDefinition(self::TARGET_PROVIDER_SERVICE_ID, $definition);
+        $registryId = EndpointProviderCompilerPass::SERVICE_ENDPOINT_REGISTRY;
+        if (!$this->container->hasDefinition($registryId)) {
+            $newRegistryDefinition = new Definition();
+            $this->container->setDefinition($registryId, $newRegistryDefinition);
+        }
+
+        $endpointDefinition = new Definition(EndpointImmutable::class);
+        $endpointDefinition->setArguments([
+            self::TARGET_HTTP_METHOD,
+            null,
+            self::TARGET_PATH,
+            $requestFormat,
+            $requestClass,
+            self::TARGET_JSON_FORMAT,
+            null,
+            null,
+        ]);
+
+        $registryDefinition = $this->container->getDefinition($registryId);
+        $registryDefinition->addMethodCall(
+            EndpointProviderCompilerPass::METHOD_REGISTER_ENDPOINT,
+            [$endpointDefinition]
+        );
     }
 
     public function testProcessThrowsWhenHandledMultipartEndpointAndFactoryMissing(): void
@@ -54,12 +76,12 @@ class MultipartStreamFactoryCompilerPassTest extends TestCase
         $targetMapping = [self::TARGET_CONTROLLER_ACTION => RequestStub::class];
 
         $this->container->setParameter(self::TARGET_MAPPING_PARAMETER, $targetMapping);
-        $this->registerEndpointProvider(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
+        $this->registerEndpoint(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectException(ConfigurationException::class);
-        $cut->process($this->container);
+        $target->process($this->container);
     }
 
     public function testProcessSucceedsWhenFactoryRegistered(): void
@@ -67,13 +89,13 @@ class MultipartStreamFactoryCompilerPassTest extends TestCase
         $targetMapping = [self::TARGET_CONTROLLER_ACTION => RequestStub::class];
 
         $this->container->setParameter(self::TARGET_MAPPING_PARAMETER, $targetMapping);
-        $this->registerEndpointProvider(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
+        $this->registerEndpoint(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
         $this->container->register(StreamFactoryInterface::class);
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectNotToPerformAssertions();
-        $cut->process($this->container);
+        $target->process($this->container);
     }
 
     public function testProcessIgnoresClientOnlyMultipartEndpoints(): void
@@ -81,12 +103,12 @@ class MultipartStreamFactoryCompilerPassTest extends TestCase
         $targetMapping = [];
 
         $this->container->setParameter(self::TARGET_MAPPING_PARAMETER, $targetMapping);
-        $this->registerEndpointProvider(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
+        $this->registerEndpoint(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectNotToPerformAssertions();
-        $cut->process($this->container);
+        $target->process($this->container);
     }
 
     public function testProcessIgnoresNonMultipartEndpoints(): void
@@ -94,21 +116,33 @@ class MultipartStreamFactoryCompilerPassTest extends TestCase
         $targetMapping = [self::TARGET_CONTROLLER_ACTION => RequestStub::class];
 
         $this->container->setParameter(self::TARGET_MAPPING_PARAMETER, $targetMapping);
-        $this->registerEndpointProvider(RequestStub::class, self::TARGET_JSON_FORMAT);
+        $this->registerEndpoint(RequestStub::class, self::TARGET_JSON_FORMAT);
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectNotToPerformAssertions();
-        $cut->process($this->container);
+        $target->process($this->container);
     }
 
     public function testProcessSucceedsWhenMappingParameterMissing(): void
     {
-        $this->registerEndpointProvider(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
+        $this->registerEndpoint(RequestStub::class, self::TARGET_MULTIPART_FORMAT);
 
-        $cut = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectNotToPerformAssertions();
-        $cut->process($this->container);
+        $target->process($this->container);
+    }
+
+    public function testProcessSucceedsWhenRegistryDefinitionMissing(): void
+    {
+        $targetMapping = [self::TARGET_CONTROLLER_ACTION => RequestStub::class];
+
+        $this->container->setParameter(self::TARGET_MAPPING_PARAMETER, $targetMapping);
+
+        $target = $this->getCut();
+
+        $this->expectNotToPerformAssertions();
+        $target->process($this->container);
     }
 }

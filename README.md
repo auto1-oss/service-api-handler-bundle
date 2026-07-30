@@ -84,10 +84,17 @@ uploaded files are exposed as `Auto1\ServiceAPIComponentsBundle\Multipart\Upload
 
 Constraints:
 * Only `POST` is supported — PHP does not parse multipart bodies for other HTTP methods; any other method is rejected with `400 Bad Request`.
+  The *wire* method is what counts: a wire `POST` carrying a `_method`/`X-HTTP-METHOD-OVERRIDE` override is accepted, since PHP has already parsed its body.
+* The `Content-Type` mime type is matched case-insensitively; `application/x-www-form-urlencoded` is also accepted
+  (PHP parses both form mime types identically, and `Request::create()`/BrowserKit default POST bodies to urlencoded even when files are attached).
+* A non-empty form body that PHP could not parse (e.g. `post_max_size` exceeded) is rejected with `400 Bad Request` instead of arriving as a silently empty payload.
 * A PSR-17 `Psr\Http\Message\StreamFactoryInterface` service must be registered in the container.
   Install a PSR-7 implementation (e.g. `nyholm/psr7` or `guzzlehttp/psr7`) and register its stream factory.
   This is enforced at container compile time: if the application serves a multipart endpoint
   and no stream factory is available, the container fails to build with a `ConfigurationException`.
+  Compile-time enforcement covers endpoints wired through the generated `endpoints.yaml` and the
+  `*Controller::*Action` convention; manually-routed handlers (e.g. `__invoke` controllers) are the
+  integrator's responsibility and fail at runtime with a descriptive `LogicException` instead.
 
 ```yaml
 uploadDocument:

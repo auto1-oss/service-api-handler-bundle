@@ -13,6 +13,7 @@ namespace Auto1\ServiceAPIHandlerBundle;
 
 use Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass\EndpointRouterCompilerPass;
 use Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass\MultipartStreamFactoryCompilerPass;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
@@ -23,6 +24,13 @@ class Auto1ServiceAPIHandlerBundle extends Bundle
         parent::build($container);
 
         $container->addCompilerPass(new EndpointRouterCompilerPass());
-        $container->addCompilerPass(new MultipartStreamFactoryCompilerPass());
+
+        // After the components-bundle EndpointProviderCompilerPass (default priority 0), so
+        // the endpoints are already baked into the registry definition when the guard runs.
+        $container->addCompilerPass(
+            new MultipartStreamFactoryCompilerPass(),
+            PassConfig::TYPE_BEFORE_OPTIMIZATION,
+            -10
+        );
     }
 }

@@ -22,13 +22,23 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 use function array_merge;
+use function explode;
+use function in_array;
 use function is_array;
 use function sprintf;
-use function str_starts_with;
+use function strtolower;
+use function trim;
 
 class MultipartRequestDataExtractor implements RequestDataExtractorInterface
 {
-    private const CONTENT_TYPE = 'multipart/form-data';
+    private const MIME_TYPE_MULTIPART = 'multipart/form-data';
+
+    // Request::create()/BrowserKit default POST bodies to urlencoded even when files are
+    // attached, and PHP parses both form mime types into the same superglobals — accept either.
+    private const FORM_MIME_TYPES = [
+        self::MIME_TYPE_MULTIPART,
+        'application/x-www-form-urlencoded',
+    ];
 
     private ?StreamFactoryInterface $streamFactory;
 
@@ -44,25 +54,41 @@ class MultipartRequestDataExtractor implements RequestDataExtractorInterface
 
     public function extract(Request $request, EndpointInterface $endpoint): array
     {
-        // PHP populates $_POST / $_FILES for POST requests only; for any other method the
-        // multipart body would be silently ignored and the payload would come out empty.
-        if (!$request->isMethod(Request::METHOD_POST)) {
+        // PHP populates $_POST / $_FILES only when the wire method is POST; method overrides
+        // (_method / X-HTTP-METHOD-OVERRIDE) are applied after parsing, so the real method
+        // decides whether the body was parsed — an overridden wire POST is fine.
+        if (Request::METHOD_POST !== $request->getRealMethod()) {
             throw new BadRequestHttpException(
                 sprintf(
-                    'multipart/form-data endpoints only support POST, got "%s".',
-                    $request->getMethod()
+                    'multipart/form-data endpoints must be sent as POST, got "%s".',
+                    $request->getRealMethod()
                 )
             );
         }
 
+        // Media types are case-insensitive (RFC 9110) and may carry parameters (boundary).
         $contentType = (string) $request->headers->get('CONTENT_TYPE');
-        if (!str_starts_with($contentType, self::CONTENT_TYPE)) {
+        $mimeTypeParts = explode(';', $contentType, 2);
+        $mimeType = strtolower(trim($mimeTypeParts[0]));
+        if (!in_array($mimeType, self::FORM_MIME_TYPES, true)) {
             throw new BadRequestHttpException(
                 sprintf(
                     'Expected "%s" content type, got "%s".',
-                    self::CONTENT_TYPE,
+                    self::MIME_TYPE_MULTIPART,
                     $contentType
                 )
+            );
+        }
+
+        // A body PHP failed to parse (e.g. post_max_size exceeded) leaves both bags empty
+        // while the body itself is non-empty — reject it instead of letting the request
+        // through with a silently empty payload.
+        if (0 === $request->request->count()
+            && 0 === $request->files->count()
+            && 0 < (int) $request->headers->get('CONTENT_LENGTH')
+        ) {
+            throw new BadRequestHttpException(
+                'Form body could not be parsed — the "post_max_size" limit may be exceeded.'
             );
         }
 

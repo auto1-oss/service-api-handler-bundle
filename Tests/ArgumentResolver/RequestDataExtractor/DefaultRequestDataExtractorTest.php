@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
 use Symfony\Component\Serializer\Exception\NotEncodableValueException;
+use Symfony\Component\Serializer\Exception\UnexpectedValueException;
 
 class DefaultRequestDataExtractorTest extends TestCase
 {
@@ -45,9 +46,9 @@ class DefaultRequestDataExtractorTest extends TestCase
 
     public function testSupportsIsAlwaysTrue(): void
     {
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->supports($this->endpoint);
+        $result = $target->supports($this->endpoint);
 
         self::assertTrue($result);
     }
@@ -78,9 +79,9 @@ class DefaultRequestDataExtractorTest extends TestCase
             ->willReturn($targetDecoded)
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertSame(
             array_merge($targetDecoded, $targetAttributes, $targetQuery),
@@ -100,9 +101,9 @@ class DefaultRequestDataExtractorTest extends TestCase
             ->method('decode')
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertSame(array_merge($targetAttributes, $targetQuery), $result);
     }
@@ -123,11 +124,32 @@ class DefaultRequestDataExtractorTest extends TestCase
             ->willReturn($targetDecoded)
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
-        $result = $extractor->extract($request, $this->endpoint);
+        $result = $target->extract($request, $this->endpoint);
 
         self::assertSame($targetDecoded, $result);
+    }
+
+    public function testExtractRejectsNonArrayDecodedBody(): void
+    {
+        $targetBody = '0';
+        $targetDecoded = 0;
+
+        $request = new Request([], [], [], [], [], [], $targetBody);
+
+        $this->endpoint->setRequestFormat(self::TARGET_FORMAT);
+
+        $this->decoder
+            ->method('decode')
+            ->with($targetBody, self::TARGET_FORMAT)
+            ->willReturn($targetDecoded)
+        ;
+
+        $target = $this->getCut();
+
+        $this->expectException(UnexpectedValueException::class);
+        $target->extract($request, $this->endpoint);
     }
 
     public function testExtractPropagatesDecodeException(): void
@@ -145,9 +167,9 @@ class DefaultRequestDataExtractorTest extends TestCase
             ->willThrowException($targetException)
         ;
 
-        $extractor = $this->getCut();
+        $target = $this->getCut();
 
         $this->expectException(NotEncodableValueException::class);
-        $extractor->extract($request, $this->endpoint);
+        $target->extract($request, $this->endpoint);
     }
 }
