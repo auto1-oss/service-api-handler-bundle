@@ -52,6 +52,9 @@ class MultipartRequestDataExtractor implements RequestDataExtractorInterface
         return EndpointInterface::FORMAT_MULTIPART === $endpoint->getRequestFormat();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function extract(Request $request, EndpointInterface $endpoint): array
     {
         // PHP populates $_POST / $_FILES only when the wire method is POST; method overrides
@@ -83,7 +86,8 @@ class MultipartRequestDataExtractor implements RequestDataExtractorInterface
         // A body PHP failed to parse (e.g. post_max_size exceeded) leaves both bags empty
         // while the body itself is non-empty — reject it instead of letting the request
         // through with a silently empty payload.
-        if (0 === $request->request->count()
+        if (
+            0 === $request->request->count()
             && 0 === $request->files->count()
             && 0 < (int) $request->headers->get('CONTENT_LENGTH')
         ) {
@@ -100,6 +104,11 @@ class MultipartRequestDataExtractor implements RequestDataExtractorInterface
         );
     }
 
+    /**
+     * @param array<int|string, mixed> $files
+     *
+     * @return array<int|string, mixed>
+     */
     private function wrapFiles(array $files): array
     {
         $wrapped = [];

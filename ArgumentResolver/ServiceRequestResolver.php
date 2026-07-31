@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\ArgumentResolver;
 
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
@@ -61,7 +63,7 @@ class ServiceRequestResolver implements ValueResolverInterface
     }
 
     /**
-     * {@inheritdoc}
+     * @return iterable<mixed>
      */
     public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {

@@ -23,6 +23,8 @@ interface RequestDataExtractorInterface
     /**
      * Returns the merged payload array to be passed to the serializer's denormalize() call
      * for the endpoint's request class.
+     *
+     * @return array<string, mixed>
      */
     public function extract(Request $request, EndpointInterface $endpoint): array;
 }

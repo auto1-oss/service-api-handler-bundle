@@ -107,7 +107,8 @@ class MultipartStreamFactoryCompilerPass implements CompilerPassInterface
             }
 
             $endpointDefinition = $arguments[0] ?? null;
-            if (!$endpointDefinition instanceof Definition
+            if (
+                !$endpointDefinition instanceof Definition
                 || EndpointImmutable::class !== $endpointDefinition->getClass()
             ) {
                 continue;

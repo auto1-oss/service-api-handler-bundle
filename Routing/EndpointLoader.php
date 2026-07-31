@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\Routing;
 
 use Auto1\ServiceAPIComponentsBundle\Exception\Core\ConfigurationException;
@@ -43,7 +45,7 @@ class EndpointLoader extends Loader
     /**
      * {@inheritdoc}
      */
-    public function load($resource, $type = null): object
+    public function load(mixed $resource, ?string $type = null): object
     {
         $routes = new RouteCollection();
 
@@ -73,7 +75,7 @@ class EndpointLoader extends Loader
     /**
      * {@inheritdoc}
      */
-    public function supports($resource, $type = null): bool
+    public function supports(mixed $resource, ?string $type = null): bool
     {
         return 'endpoint_handler' === $type;
     }

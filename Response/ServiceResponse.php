@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\Response;
 
 use Symfony\Component\HttpFoundation\Response;
@@ -28,7 +30,7 @@ class ServiceResponse extends ResponseDelegator
      *
      * @param mixed $data
      * @param int $status
-     * @param array $headers
+     * @param array<string, mixed> $headers
      */
     public function __construct($data = '', int $status = 200, array $headers = [])
     {

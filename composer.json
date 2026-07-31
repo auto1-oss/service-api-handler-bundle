@@ -23,14 +23,17 @@
     "symfony/property-info": "~6.4|~7.0",
     "symfony/yaml": "~6.4|~7.0",
     "monolog/monolog": "~1.22|^2.9|^3.0",
-    "symfony/routing": "~6.4|~7.0"
+    "symfony/routing": "~6.4|~7.0",
+    "symfony/finder": "~6.4|~7.0"
   },
   "require-dev": {
     "symfony/console": "~6.4|~7.0",
     "phpunit/phpunit": "^7.5|^8.0|^9.6",
     "phpspec/prophecy": "^1.7.2",
     "psr/http-message": "^1.1|^2.0",
-    "symfony/framework-bundle": "~6.4|~7.0"
+    "symfony/framework-bundle": "~6.4|~7.0",
+    "phpstan/phpstan": "^2.1",
+    "squizlabs/php_codesniffer": "^4.0"
   },
   "suggest": {
       "nelmio/api-doc-bundle": "For Generating API documentations",

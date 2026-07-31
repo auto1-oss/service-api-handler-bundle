@@ -37,6 +37,9 @@ class DefaultRequestDataExtractor implements RequestDataExtractorInterface
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function extract(Request $request, EndpointInterface $endpoint): array
     {
         $decoded = [];

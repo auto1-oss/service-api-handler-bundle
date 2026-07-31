@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle;
 
 use Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass\EndpointRouterCompilerPass;
