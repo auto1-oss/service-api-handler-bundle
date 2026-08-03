@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\ApiDoc;
 
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
@@ -118,7 +120,7 @@ class OpenApiEndpointRouteDescriber implements RouteDescriberInterface, ModelReg
         }
 
         $request = $this->controllerToRequestMapping[$controller];
-        $endpoint = $this->endpointRegistry->getEndpoint(new $request);
+        $endpoint = $this->endpointRegistry->getEndpoint(new $request());
 
         return $endpoint;
     }

@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\Response;
 
 use Symfony\Component\HttpFoundation\Response;
@@ -30,7 +32,7 @@ class ResponseDelegator
      *
      * @param mixed $content
      * @param int $status
-     * @param array $headers
+     * @param array<string, mixed> $headers
      */
     public function __construct($content = '', int $status = 200, array $headers = [])
     {
@@ -41,7 +43,7 @@ class ResponseDelegator
      * Delegating
      *
      * @param string $name
-     * @param array $arguments
+     * @param mixed[] $arguments
      * @return mixed
      */
     public function __call($name, $arguments)
@@ -84,13 +86,18 @@ class ResponseDelegator
         $this->response = clone $this->response;
     }
 
+    /**
+     * @param string $name
+     * @param mixed[] $arguments
+     * @return never
+     */
     public static function __callStatic($name, $arguments)
     {
         throw new \RuntimeException(sprintf(
-           'Static method %1$s::%3$s is not supported, please use %2$s::%3$s instead',
-           static::class,
-           Response::class,
-           $name
+            'Static method %1$s::%3$s is not supported, please use %2$s::%3$s instead',
+            static::class,
+            Response::class,
+            $name
         ));
     }
 }

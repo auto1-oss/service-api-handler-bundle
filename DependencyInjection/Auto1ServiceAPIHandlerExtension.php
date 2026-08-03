@@ -9,8 +9,11 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\DependencyInjection;
 
+use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\RequestDataExtractorInterface;
 use Nelmio\ApiDocBundle\NelmioApiDocBundle;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -34,6 +37,11 @@ class Auto1ServiceAPIHandlerExtension extends Extension
 
         //Load config files
         $loader->load('services.yml');
+
+        $container
+            ->registerForAutoconfiguration(RequestDataExtractorInterface::class)
+            ->addTag('auto1.api_handler.request_data_extractor')
+        ;
 
         if (!class_exists('EXSyst\Component\Swagger\Swagger') || class_exists('OpenApi\Annotations\OpenApi')) {
             $container->removeDefinition('auto1.route_describers.route_metadata');

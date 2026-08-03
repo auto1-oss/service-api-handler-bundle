@@ -9,13 +9,14 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\DependencyInjection\CompilerPass;
 
 use Symfony\Component\Config\Resource\ComposerResource;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\Finder\SplFileInfo;
 use Auto1\ServiceAPIRequest\ServiceRequestInterface;
 
 /**
@@ -23,16 +24,16 @@ use Auto1\ServiceAPIRequest\ServiceRequestInterface;
  */
 class EndpointRouterCompilerPass implements CompilerPassInterface
 {
-    const CONTROLLER_SUFFIX = 'Controller';
-    const ACTION_SUFFIX = 'Action';
-    const EXCLUDES_IN_VENDOR = [
+    public const CONTROLLER_SUFFIX = 'Controller';
+    public const ACTION_SUFFIX = 'Action';
+    public const EXCLUDES_IN_VENDOR = [
         'symfony/framework-bundle'
     ];
 
     /**
      * You can modify the container here before it is dumped to PHP code.
      */
-    public function process(ContainerBuilder $container)
+    public function process(ContainerBuilder $container): void
     {
         $cmp = new ComposerResource();
 
@@ -57,14 +58,12 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
 
         $paths = array_merge([$rootPath], $vendorPaths);
 
-        /** @var SplFileInfo[]|Finder $finder */
         $finder = new Finder();
         $finder->name(sprintf('*%s.php', self::CONTROLLER_SUFFIX));
         $finder->in($paths);
         $finder->exclude(self::EXCLUDES_IN_VENDOR);
 
-        foreach ($finder as $file)
-        {
+        foreach ($finder as $file) {
             try {
                 require_once($file->getRealPath());
             } catch (\Throwable $e) {
@@ -101,10 +100,10 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * @param array $routeDetails
-     * @param array $classToServiceMapping
+     * @param array<int, array{request: string, controller: string, action: string}> $routeDetails
+     * @param array<string, string> $classToServiceMapping
      *
-     * @return array
+     * @return array<string, string>
      */
     private function buildMappingFromRouteDetails($routeDetails, $classToServiceMapping)
     {
@@ -123,12 +122,12 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * @param array $controllers
+     * @param string[] $controllers
      *
-     * @return array
+     * @return array<int, array{request: string, controller: string, action: string}>
      * @throws \ReflectionException
      */
-    private function getRouteDetailsForControllers(array $controllers) : array
+    private function getRouteDetailsForControllers(array $controllers): array
     {
         $routeDetails = [];
 
@@ -175,11 +174,11 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * @param array $classes
+     * @param array<int|string, string> $classes
      *
-     * @return array
+     * @return array<int|string, string>
      */
-    private function filterControllers(array $classes) : array
+    private function filterControllers(array $classes): array
     {
         return \array_filter($classes, function ($v) {
             return \substr($v, -\strlen(self::CONTROLLER_SUFFIX)) === self::CONTROLLER_SUFFIX;
@@ -187,11 +186,11 @@ class EndpointRouterCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * @param array $methods
+     * @param string[] $methods
      *
-     * @return array
+     * @return string[]
      */
-    private function filterActions(array $methods) : array
+    private function filterActions(array $methods): array
     {
         return \array_filter($methods, function ($v) {
             return \substr($v, -\strlen(self::ACTION_SUFFIX)) === self::ACTION_SUFFIX;

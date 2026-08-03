@@ -9,19 +9,27 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\ArgumentResolver;
 
+use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointRegistryInterface;
 use Auto1\ServiceAPIComponentsBundle\Service\Logger\LoggerAwareTrait;
+use Auto1\ServiceAPIHandlerBundle\ArgumentResolver\RequestDataExtractor\RequestDataExtractorInterface;
 use Auto1\ServiceAPIHandlerBundle\EventListener\ServiceResponseListener;
 use Auto1\ServiceAPIRequest\ServiceRequestInterface;
+use LogicException;
+use ReflectionClass;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Serializer\Exception\ExceptionInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
-use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+
+use function sprintf;
 
 /**
  * Class ArgumentResolver
@@ -29,40 +37,33 @@ use Symfony\Component\Serializer\SerializerInterface;
 class ServiceRequestResolver implements ValueResolverInterface
 {
     use LoggerAwareTrait;
-    /**
-     * @var SerializerInterface
-     */
-    private $serializer;
+
+    private DenormalizerInterface $denormalizer;
+    private EndpointRegistryInterface $endpointRegistry;
+    private ServiceResponseListener $serviceResponseListener;
 
     /**
-     * @var EndpointRegistryInterface
+     * @var iterable<RequestDataExtractorInterface>
      */
-    private $endpointRegistry;
+    private iterable $requestDataExtractors;
 
     /**
-     * @var ServiceResponseListener
-     */
-    private $serviceResponseListener;
-
-    /**
-     * ServiceRequestResolver constructor.
-     *
-     * @param SerializerInterface $serializer
-     * @param EndpointRegistryInterface $endpointRegistry
-     * @param ServiceResponseListener $serviceResponseListener
+     * @param iterable<RequestDataExtractorInterface> $requestDataExtractors
      */
     public function __construct(
-        SerializerInterface $serializer,
+        DenormalizerInterface $denormalizer,
         EndpointRegistryInterface $endpointRegistry,
-        ServiceResponseListener $serviceResponseListener
+        ServiceResponseListener $serviceResponseListener,
+        iterable $requestDataExtractors
     ) {
-        $this->serializer = $serializer;
+        $this->denormalizer = $denormalizer;
         $this->endpointRegistry = $endpointRegistry;
         $this->serviceResponseListener = $serviceResponseListener;
+        $this->requestDataExtractors = $requestDataExtractors;
     }
 
     /**
-      * {@inheritdoc}
+     * @return iterable<mixed>
      */
     public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {
@@ -70,46 +71,63 @@ class ServiceRequestResolver implements ValueResolverInterface
             return [];
         }
 
-        $endpoint = $this->endpointRegistry->getEndpoint(
-            (new \ReflectionClass($argument->getType()))->newInstanceWithoutConstructor()
-        );
+        $endpoint = $this->endpointRegistry
+            ->getEndpoint(
+                (new ReflectionClass($argument->getType()))
+                    ->newInstanceWithoutConstructor()
+            )
+        ;
 
         if ($endpoint->getRequestClass() !== $argument->getType()) {
-            throw new \LogicException('Incorrect resolving');
+            throw new LogicException('Incorrect resolving');
         }
 
         try {
-            $requestVars = array_merge(
-                !empty($request->getContent())
-                    ? $this->serializer->decode(
-                    $request->getContent(),
-                    $endpoint->getRequestFormat()
-                )
-                    : []
-                ,
-                $request->attributes->all(),
-                $request->query->all()
-            );
+            $requestVars = $this->resolveExtractor($endpoint)->extract($request, $endpoint);
 
             $this->serviceResponseListener->addExpectedRequestEndpoint($request, $endpoint);
 
-            yield $this->serializer->denormalize(
-                $requestVars,
-                $endpoint->getRequestClass(),
-                $endpoint->getRequestFormat(),
-                [
-                    AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true,
-                ]
-            );
+            yield $this->denormalizer
+                ->denormalize(
+                    $requestVars,
+                    $endpoint->getRequestClass(),
+                    $endpoint->getRequestFormat(),
+                    [
+                        AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true,
+                    ]
+                )
+            ;
         } catch (ExceptionInterface $exception) {
-            $this->getLogger()->warning(
-                'Request deserialization exception',
-                [
-                    'exception_message' => $exception->getMessage(),
-                ]
-            );
+            $this->getLogger()
+                ->warning(
+                    sprintf(
+                        'Request deserialization exception: %s',
+                        $exception->getMessage()
+                    ),
+                    [
+                        'exception' => $exception,
+                    ]
+                )
+            ;
+
             throw new BadRequestHttpException('Request deserialization error');
         }
+    }
+
+    private function resolveExtractor(EndpointInterface $endpoint): RequestDataExtractorInterface
+    {
+        foreach ($this->requestDataExtractors as $extractor) {
+            if ($extractor->supports($endpoint)) {
+                return $extractor;
+            }
+        }
+
+        throw new LogicException(
+            sprintf(
+                'No request data extractor supports endpoint with format "%s".',
+                $endpoint->getRequestFormat()
+            )
+        );
     }
 
     private function supports(ArgumentMetadata $argument): bool

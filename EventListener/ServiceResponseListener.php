@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace Auto1\ServiceAPIHandlerBundle\EventListener;
 
 use Auto1\ServiceAPIComponentsBundle\Service\Endpoint\EndpointInterface;
@@ -57,15 +59,9 @@ class ServiceResponseListener implements EventSubscriberInterface
 
     /**
      * Do the conversion if applicable and update the response of the event.
-     *
-     * @param Event\ViewEvent|Event\GetResponseForControllerResultEvent $event
      */
-    public function onKernelView($event)
+    public function onKernelView(Event\ViewEvent $event): void
     {
-        if (!($event instanceof Event\ViewEvent || $event instanceof Event\GetResponseForControllerResultEvent)) {
-            throw new \LogicException('Unsupported event type');
-        }
-
         $serviceResponse = $event->getControllerResult();
 
         if (!$serviceResponse instanceof ServiceResponse) {
@@ -83,7 +79,7 @@ class ServiceResponseListener implements EventSubscriberInterface
      * @param Request $request
      * @param EndpointInterface $endpoint
      */
-    public function addExpectedRequestEndpoint(Request $request, EndpointInterface $endpoint)
+    public function addExpectedRequestEndpoint(Request $request, EndpointInterface $endpoint): void
     {
         $key = $this->getRequestIdentifier($request);
 

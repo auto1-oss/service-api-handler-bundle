@@ -1,0 +1,14 @@
+parameters:
+    level: 6
+    paths:
+        - %currentWorkingDirectory%/ArgumentResolver/
+        - %currentWorkingDirectory%/DependencyInjection/
+        - %currentWorkingDirectory%/EventListener/
+        - %currentWorkingDirectory%/Response/
+        - %currentWorkingDirectory%/Routing/
+        - %currentWorkingDirectory%/Auto1ServiceAPIHandlerBundle.php
+    fileExtensions:
+        - php
+    excludePaths:
+        - %currentWorkingDirectory%/Tests
+        - %currentWorkingDirectory%/vendor
