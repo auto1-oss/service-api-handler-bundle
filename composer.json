@@ -29,7 +29,8 @@
     "symfony/console": "~6.4|~7.0",
     "phpunit/phpunit": "^7.5|^8.0|^9.6",
     "phpspec/prophecy": "^1.7.2",
-    "psr/http-message": "^1.1|^2.0"
+    "psr/http-message": "^1.1|^2.0",
+    "symfony/framework-bundle": "~6.4|~7.0"
   },
   "suggest": {
       "nelmio/api-doc-bundle": "For Generating API documentations",
@@ -39,7 +40,8 @@
     "psr-4": { "Auto1\\ServiceAPIHandlerBundle\\": "" }
   },
   "autoload-dev": {
-    "psr-4": { "Tests\\Auto1\\ServiceAPIHandlerBundle\\": "Tests"}
+    "psr-4": { "Tests\\Auto1\\ServiceAPIHandlerBundle\\": "Tests"},
+    "exclude-from-classmap": ["Tests/Integration/Fixtures/src/"]
   },
   "repositories": [
     {
